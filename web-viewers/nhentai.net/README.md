@@ -4,7 +4,7 @@
 
 ## Author
 - **galpt** - [GitHub](https://github.com/galpt)
-- **Repository**: [adguard-userscripts](https://github.com/galpt/adguard-userscripts)s
+- **Repository**: [adguard-userscripts](https://github.com/galpt/adguard-userscripts)
 
 ## Overview
 
