@@ -616,7 +616,7 @@
                     window.cleanupLazyLoader();
                 }
                 delete window.retryImage;
-                delete window.closeSmartReader;
+                // Don't delete closeSmartReader - keep it available for future use
             }, 300);
         }
     };
