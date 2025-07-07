@@ -1,7 +1,10 @@
 # nhentai.net Smart Reader
 
-> **Author**: galpt  
-> **GitHub**: [v.recipes](https://v.recipes/)
+> **Part of the [adguard-userscripts](https://github.com/galpt/adguard-userscripts) collection** - A comprehensive repository of intelligent userscripts for AdGuard.
+
+## Author
+- **galpt** - [GitHub](https://github.com/galpt)
+- **Repository**: [adguard-userscripts](https://github.com/galpt/adguard-userscripts)s
 
 ## Overview
 
@@ -101,7 +104,7 @@ The **nhentai.net Smart Reader** is an intelligent userscript that enhances the 
 
 ## 🎨 Design Philosophy
 
-The Smart Reader follows the design language of [v.recipes](https://v.recipes/), featuring:
+The Smart Reader follows the design language of [adguard-userscripts](https://github.com/galpt/adguard-userscripts), featuring:
 - **Dark Theme**: Easy on the eyes for long reading sessions
 - **Modern Animations**: Smooth transitions and loading effects
 - **Responsive Layout**: Adapts to any screen size
@@ -196,4 +199,4 @@ This userscript is provided as-is for educational and personal use. Please respe
 
 ---
 
-**Made with ❤️ by [galpt](https://v.recipes/)** 
+**Made with ❤️ by [galpt](https://github.com/galpt)** 
