@@ -1,12 +1,29 @@
-# AI Browsing Agent (Gemini-Powered) v4.3.0
+# AI Browsing Agent (Gemini-Powered) v4.4.0
 
-A sophisticated userscript that transforms your browsing experience with Google Gemini AI integration. Features **intelligent orchestration**, real-time DOM manipulation, multi-turn function calling, and a **Windows 11-inspired dark theme design**.
+A sophisticated userscript that transforms your browsing experience with Google Gemini AI integration. Features **intelligent URL browsing**, **conversation memory**, **multi-source content integration**, real-time DOM manipulation, and a **Windows 11-inspired dark theme design**.
 
 ## ✨ Key Features
 
-### 🧠 **Intelligent Orchestration System (NEW in v4.3.0)**
+### 🌐 **Intelligent URL Browsing System (NEW in v4.4.0)**
+- **Smart URL Detection**: Automatically detects and browses URLs mentioned in conversations
+- **Multi-Source Integration**: Intelligently combines content from multiple websites into coherent summaries
+- **AI-Driven Decisions**: Uses AI to determine if additional URLs need to be browsed for complete answers
+- **Progressive Summarization**: Builds comprehensive understanding across multiple browsed sources
+- **Context-Aware Analysis**: Provides summaries that work regardless of your current page context
+- **Adaptive Content Handling**: Manages large content with progressive reduction strategies
+
+### 💬 **Conversation Memory & Context Management (NEW in v4.4.0)**
+- **Persistent History**: Remembers conversations across browser sessions and page refreshes
+- **Smart Context Management**: Automatically summarizes older messages to maintain relevant context
+- **Token Optimization**: Intelligent token estimation and management for optimal performance
+- **Cross-Session Continuity**: Maintains conversation flow when switching between models or pages
+- **Memory-Aware Responses**: Uses conversation history for more contextual and intelligent answers
+- **Clear History Function**: Convenient reset option to start fresh conversations
+
+### 🧠 **Enhanced Orchestration System**
+- **Dual-Flow Intelligence**: Separate optimized handling for URL browsing vs. standard DOM manipulation
 - **Multi-Turn Function Calling**: Automatically chains operations across multiple AI calls to complete complex tasks
-- **Intent Analysis**: Smart detection of user goals (modify, create, remove, analyze) with automatic workflow planning
+- **Intent Analysis**: Smart detection of user goals (modify, create, remove, analyze, browse) with automatic workflow planning
 - **Task Completion Intelligence**: Knows when to continue working vs when the task is truly finished
 - **Context Preservation**: Maintains conversation context and previous results across iterations
 - **Progress Tracking**: Real-time feedback showing discovery → analysis → modification workflows
@@ -35,6 +52,7 @@ A sophisticated userscript that transforms your browsing experience with Google 
 - **Optimized Floating Button**: Compact 46px button with sparkle (✨) icon
 - **Responsive Modal**: Beautiful popup interface with generous spacing and proper typography
 - **Enhanced Layout**: Improved spacing, better visual hierarchy, and refined animations
+- **Conversation Indicators**: Shows message count and browsing capabilities in status display
 
 ### 🤖 **Complete Gemini API Integration**
 - **Official REST API**: Direct integration with Google's Gemini API endpoints (`generativelanguage.googleapis.com`)
@@ -53,10 +71,11 @@ A sophisticated userscript that transforms your browsing experience with Google 
 
 ### 🧪 **Intelligent Content Analysis & Function Calling**
 - **Function-Calling System**: AI can automatically execute browser functions through structured responses
-- **Automatic URL Browsing**: AI detects and fetches content from URLs mentioned in conversations
+- **Intelligent URL Browsing**: AI detects URLs and decides optimal browsing strategy for comprehensive answers
+- **Multi-Source Summarization**: Combines information from current page and multiple external URLs
 - **Enhanced Page Summarization**: Comprehensive analysis with key topics, statistics, and structured summaries
-- **Context-Aware Responses**: AI understands the website you're viewing with deep content analysis
-- **Cross-Site Analysis**: Browse and analyze multiple websites in one conversation
+- **Context-Aware Responses**: AI understands both current page and browsed external content
+- **Cross-Site Analysis**: Browse and analyze multiple websites in one conversation with intelligent decision making
 - **Real-time Stats**: Live word count, link analysis, and image detection
 
 ## 🔧 Installation
@@ -80,15 +99,28 @@ The script is designed to work seamlessly with AdGuard Desktop, providing AI-pow
 1. **Get API Key**: Visit [Google AI Studio](https://aistudio.google.com/app/apikey) to get your free Gemini API key
 2. **Activate Agent**: Look for the sparkle (✨) button in the bottom-right corner of any webpage
 3. **Configure Settings**: Click the floating button → Settings → Enter your API key and select your preferred model
-4. **Start Chatting**: Begin asking questions about any webpage content
+4. **Start Chatting**: Begin asking questions about any webpage content or provide URLs to analyze
 
 ### Interface Overview
-- **Chat Area**: Interactive conversation with intelligent multi-turn function calling
+- **Chat Area**: Interactive conversation with intelligent multi-turn function calling and conversation memory
 - **Input Field**: Auto-resizing textarea (like v.chat) with Enter to send, Shift+Enter for new line
-- **Quick Actions**: Summarize, Clean Page, DOM Demo, Settings buttons with descriptive tooltips
-- **Progress Indicators**: Real-time feedback showing orchestration progress and task completion
+- **Quick Actions**: Summarize, Clean Page, DOM Demo, Clear History, Settings buttons with descriptive tooltips
+- **Progress Indicators**: Real-time feedback showing orchestration progress, URL browsing, and task completion
+- **Memory Indicators**: Shows conversation history count and browsing capabilities in status display
 
-### Enhanced Commands (v4.3.0)
+### Enhanced Commands (v4.4.0)
+
+#### Intelligent URL Browsing & Analysis
+- **"Summarize this Wikipedia article about Time Complexity"** *(while on any unrelated page)* - Automatically browses and summarizes the URL
+- **"Compare information from https://example1.com and https://example2.com"** - Browses multiple URLs and provides comparative analysis
+- **"What does this research paper say about AI? https://arxiv.org/abs/..."** - Analyzes external content regardless of current page
+- **"Please analyze these three articles: [URL1] [URL2] [URL3]"** - Intelligently decides which URLs to browse for comprehensive understanding
+- **"Summarize the main points from https://news-site.com while I'm reading this Wikipedia page"** - Multi-source content integration
+
+#### Conversation Memory & Context
+- **"What did we discuss about machine learning earlier?"** - References previous conversation history
+- **"Based on our previous conversation about APIs..."** - Uses stored context for more intelligent responses
+- **"Can you expand on the point you made about neural networks in our last chat?"** - Leverages conversation memory across sessions
 
 #### Intelligent DOM Manipulation
 - **"Edit the Wikipedia title and add '(Real-time Manipulation)' to it"** - Automatically discovers page structure and modifies titles
@@ -107,7 +139,52 @@ The script is designed to work seamlessly with AdGuard Desktop, providing AI-pow
 - **"Find all the headings and make them green"** - Discovery followed by batch modifications
 - **"Create a table of contents from the headings"** - Complex DOM manipulation with intelligent structure analysis
 
-## 🔧 Enhanced Function Calling System (v4.3.0)
+## 🌐 Enhanced Intelligent Browsing System (v4.4.0)
+
+### Smart URL Detection & Decision Making
+The AI now features sophisticated URL browsing intelligence that works seamlessly regardless of your current page:
+
+1. **Automatic URL Detection**: Instantly identifies URLs in your messages
+2. **Content Accumulation**: Builds comprehensive summaries across multiple sources
+3. **AI-Driven Decisions**: Determines if additional URLs need browsing for complete answers
+4. **Progressive Summarization**: Intelligently combines information from all sources
+5. **Context Integration**: Merges current page content with external browsed content
+
+### Browsing Flow Example
+**User**: *"Can you summarize this article about neural networks: https://example.com/neural-networks"* *(while browsing Wikipedia about cats)*
+
+**Intelligent Browsing Flow**:
+```
+🌐 Intelligently browsing URLs...
+✅ Browsed https://example.com/neural-networks - Content summarized
+🧠 AI Decision: Sufficient information gathered
+📋 Generating comprehensive response...
+✅ Response: [Detailed neural networks summary with integration of any relevant current page context]
+```
+
+### Multi-Source Analysis Example
+**User**: *"Compare the information from these two sources: https://source1.com and https://source2.com"*
+
+**Advanced Browsing Flow**:
+```
+🌐 Intelligently browsing URLs...
+✅ Browsed https://source1.com - Added to accumulated summary
+🤔 AI evaluating need for additional browsing...
+✅ AI Decision: Browsing second URL for comprehensive comparison
+✅ Browsed https://source2.com - Integrated with existing analysis
+📊 Generating comparative analysis...
+✅ Response: [Detailed comparison with insights from both sources]
+```
+
+### Conversation Memory Integration
+The browsing system now works seamlessly with conversation memory:
+
+- **Context Awareness**: Remembers what you've previously discussed and browsed
+- **Reference Integration**: Can refer back to previously browsed content in new conversations
+- **Smart Summarization**: Automatically manages conversation length while preserving important browsed content
+- **Cross-Session Continuity**: Maintains browsing context across browser sessions
+
+## 🔧 Enhanced Function Calling System
 
 ### Orchestration Intelligence
 The AI now features sophisticated orchestration logic that automatically chains function calls to complete complex tasks:
@@ -117,49 +194,56 @@ The AI now features sophisticated orchestration logic that automatically chains 
 3. **Multi-Turn Execution**: Continues working across multiple AI responses until task completion
 4. **Progress Tracking**: Monitors discovery, analysis, and modification phases
 5. **Smart Continuation**: Knows when to keep working vs when the task is finished
+6. **Dual-Flow Processing**: Separate optimized paths for URL browsing vs DOM manipulation
 
 ### Available Functions
-1. **discoverElements** - Intelligent page structure analysis with categorized results
-2. **browseUrl** - Fetch and analyze content from external URLs
-3. **createElement** - Create new HTML elements with styling and positioning
-4. **removeElement** - Remove elements using CSS selectors with fallback strategies
-5. **modifyElement** - Modify existing elements with intelligent selector fallbacks
-6. **addStyles** - Inject custom CSS into the page
-7. **analyzeContent** - Comprehensive content analysis with topic extraction
+1. **intelligentBrowsingFlow** - Smart URL detection and multi-source content integration
+2. **discoverElements** - Intelligent page structure analysis with categorized results
+3. **browseUrl** - Fetch and analyze content from external URLs with summarization
+4. **createElement** - Create new HTML elements with styling and positioning
+5. **removeElement** - Remove elements using CSS selectors with fallback strategies
+6. **modifyElement** - Modify existing elements with intelligent selector fallbacks
+7. **addStyles** - Inject custom CSS into the page
+8. **analyzeContent** - Comprehensive content analysis with topic extraction
 
-### Orchestration Example
-**User**: *"Edit the Wikipedia title and add '(Real-time Demo)' to it"*
-
-**Orchestration Flow**:
-```
-🧠 Intent Analysis: Action=modify, Target=title/heading
-🔍 Iteration 1: Discovering page elements...
-✅ Found title element: #firstHeading "Machine learning"
-🔄 Continuing to complete your request...
-⚡ Iteration 2: Modifying title element...
-✅ Modified title to "Machine learning (Real-time Demo)"
-🎉 Task completed successfully!
-```
-
-### Enhanced Function Call Format
+### Enhanced Browsing Function Format
 ```json
 [FUNCTION_CALL]
 {
-  "function": "discoverElements",
-  "focus": "headings",
-  "limit": 10,
-  "description": "Finding page headings for modification"
+  "function": "browseUrl",
+  "url": "https://example.com/article",
+  "description": "Analyzing external article about machine learning"
 }
 [/FUNCTION_CALL]
+```
 
-[FUNCTION_CALL]
-{
-  "function": "modifyElement",
-  "selector": "#firstHeading",
-  "text": "Machine learning (Real-time Demo)",
-  "description": "Adding demo text to Wikipedia title"
-}
-[/FUNCTION_CALL]
+The AI automatically handles:
+- Content fetching and parsing
+- Progressive summarization
+- Integration with existing context
+- Decision making for additional browsing
+
+## 💾 Conversation History & Memory Management
+
+### Persistent Storage
+- **Cross-Session Memory**: Conversations persist across browser restarts and page changes
+- **Intelligent Summarization**: Older messages automatically summarized to maintain context while managing memory
+- **Token Management**: Smart token estimation and context trimming for optimal performance
+- **Secure Storage**: Uses browser's secure storage mechanisms (GM_setValue/GM_getValue)
+
+### Memory Features
+- **Conversation Continuity**: References previous discussions naturally
+- **Context Preservation**: Maintains important information while optimizing for performance
+- **Smart Summarization**: AI-powered conversation summarization when history grows large
+- **Clear History Option**: Convenient reset button to start fresh when needed
+
+### Memory Integration Example
+```
+User Session 1: "Tell me about machine learning"
+AI Response: [Detailed explanation about ML]
+
+User Session 2 (next day): "What types of neural networks did we discuss?"
+AI Response: "Based on our previous conversation about machine learning, we covered..." [References stored conversation history]
 ```
 
 ## 🛡️ Robust Error Handling & Recovery
@@ -169,12 +253,14 @@ The AI now features sophisticated orchestration logic that automatically chains 
 - **Pattern Matching**: If `.mw-notice` fails, tries `[class*="notice"]`, `.notification`, `.alert`
 - **Suggestion Engine**: Provides actionable alternatives when elements can't be located
 - **Graceful Degradation**: Tasks continue with best-effort approaches rather than hard failures
+- **Browsing Resilience**: Handles failed URL fetches with graceful error messages
 
 ### Smart Continuation Logic
 - **Task Completion Analysis**: Determines if user goals have been met vs need more work
 - **Progress-Based Decisions**: Only continues when it makes sense based on current progress
 - **Iteration Limits**: Prevents infinite loops with intelligent stopping conditions
 - **Context Preservation**: Maintains discovery results and conversation context across attempts
+- **Browsing Recovery**: Continues with available content when some URLs fail to load
 
 ## 🔒 Authentication & Security
 
@@ -185,10 +271,11 @@ The AI now features sophisticated orchestration logic that automatically chains 
 4. **No Intermediaries**: No third-party services or proxy servers involved
 
 ### Privacy Features
-- **Local Storage Only**: API keys and settings stored only in your browser
+- **Local Storage Only**: API keys, settings, and conversation history stored only in your browser
 - **No Data Collection**: Zero telemetry or usage tracking
 - **Secure Transport**: All API calls use HTTPS encryption
-- **User Control**: You can clear settings and data at any time
+- **User Control**: You can clear settings, history, and data at any time
+- **Conversation Privacy**: Your conversation history never leaves your browser
 
 ## 🎨 Design Philosophy
 
@@ -207,14 +294,44 @@ The interface follows Microsoft's Fluent Design principles:
 - **Rounded Geometry**: Modern 8px, 10px, and 12px border radius
 - **Backdrop Effects**: Subtle blur effects for depth and modern layering
 
-### Enhanced UX (v4.3.0)
+### Enhanced UX (v4.4.0)
 - **Auto-Resizing Input**: Textarea grows/shrinks like v.chat (46px-200px)
 - **Keyboard Shortcuts**: Enter to send, Shift+Enter for new line
-- **Progress Indicators**: Clear feedback during multi-step operations
+- **Progress Indicators**: Clear feedback during multi-step operations and URL browsing
 - **Descriptive Tooltips**: Helpful explanations for all quick action buttons
 - **Visual Feedback**: Different colors for success/error/progress states
+- **Memory Indicators**: Shows conversation history count and current capabilities
+- **Browsing Status**: Real-time updates during URL analysis and content integration
 
 ## 🛠️ Technical Architecture
+
+### Enhanced Conversation Management
+```javascript
+class GeminiClient {
+    // Conversation history with persistent storage
+    loadConversationHistory() { /* Load from browser storage */ }
+    addToConversationHistory(role, content) { /* Add with timestamp */ }
+    manageConversationContext(userQuery) { /* Smart context management */ }
+    summarizeOlderMessages() { /* AI-powered summarization */ }
+}
+```
+
+### Intelligent Browsing System
+```javascript
+class FunctionOrchestrator {
+    async intelligentBrowsingFlow(userMessage) {
+        // Smart URL detection and extraction
+        // Progressive browsing with AI decision making
+        // Content accumulation and summarization
+    }
+    
+    async shouldBrowseAdditionalUrls(userQuery, remainingUrls) {
+        // AI-driven decision making for comprehensive analysis
+        // Evaluates current content sufficiency
+        // Determines optimal browsing strategy
+    }
+}
+```
 
 ### Enhanced Orchestration System
 ```javascript
@@ -226,78 +343,56 @@ class UIManager {
         // Task completion validation
     }
     
-    analyzeUserIntent(userMessage) {
-        // Action detection (modify, create, remove, etc.)
-        // Target identification (title, content, navigation)
-        // Workflow suggestion generation
+    async intelligentBrowsingOrchestration(message) {
+        // Specialized flow for URL browsing
+        // Multi-source content integration
+        // Intelligent response generation
     }
 }
 ```
 
-### Advanced DOM Manipulation
-```javascript
-class FunctionOrchestrator {
-    async discoverElements(params) {
-        // Intelligent page structure analysis
-        // Categorized element discovery
-        // Robust selector generation
-    }
-    
-    generateFallbackSelectors(originalSelector) {
-        // Smart fallback generation
-        // Pattern-based alternatives
-        // MediaWiki-specific patterns
-    }
-}
-```
+## 🚀 What's New in v4.4.0
 
-### Smart Error Recovery
-```javascript
-async suggestAlternativeSelectors(failedSelector) {
-    // Analyze page structure for alternatives
-    // Context-aware suggestions
-    // Actionable recommendations
-}
-```
+### Major Features
+- ✅ **Intelligent URL Browsing**: AI can now browse and analyze URLs from any page context
+- ✅ **Conversation Memory**: Persistent conversation history across sessions with smart summarization
+- ✅ **Multi-Source Integration**: Combines content from multiple URLs and current page intelligently
+- ✅ **AI-Driven Browsing Decisions**: Determines optimal browsing strategy for comprehensive answers
+- ✅ **Enhanced Context Management**: Better token management and conversation flow
+- ✅ **Progressive Summarization**: Builds understanding incrementally across multiple sources
 
-## 📈 Version History
+### UI Improvements
+- ✅ **Clear History Button**: Convenient conversation reset functionality
+- ✅ **Memory Indicators**: Shows conversation history count in status display
+- ✅ **Enhanced Status Messages**: Better feedback during browsing and processing
+- ✅ **Improved Welcome Message**: Reflects new intelligent capabilities
 
-### v4.3.0 (Latest) - Intelligent Orchestration
-- **Multi-Turn Function Calling**: Automatic task completion across multiple AI iterations
-- **Intent Analysis System**: Smart detection of user goals and workflow planning
-- **Enhanced DOM Discovery**: Robust element discovery with fallback strategies
-- **Task Completion Intelligence**: Knows when to continue vs when tasks are finished
-- **Progress Tracking**: Real-time feedback during complex operations
-- **Improved Error Recovery**: Actionable suggestions when operations fail
+### Technical Enhancements
+- ✅ **Dual-Flow Orchestration**: Optimized separate paths for browsing vs DOM manipulation
+- ✅ **Smart Token Management**: Intelligent context preservation and memory optimization
+- ✅ **Enhanced Error Handling**: Better recovery from browsing failures and API errors
+- ✅ **Cross-Session Continuity**: Seamless conversation flow across browser sessions
 
-### v4.2.0 - DOM Manipulation Intelligence
-- **Element Discovery System**: Intelligent page structure analysis before manipulation
-- **Smart Fallback Strategies**: Automatic alternative selector generation
-- **Enhanced Error Handling**: Better feedback and recovery options
-- **Wikipedia Integration**: MediaWiki-specific selector support
+## 📈 Performance & Limitations
 
-### v4.1.0 - Core Functionality
-- **Function Calling System**: Structured AI function execution
-- **DOM Manipulation**: Real-time webpage modification capabilities
-- **Content Analysis**: Enhanced page summarization and analysis
-- **Temperature Optimization**: Dynamic temperature for deterministic function calling
+### Optimizations
+- **Smart Token Management**: Automatic context optimization to stay within API limits
+- **Progressive Content Reduction**: Intelligent content truncation for large web pages
+- **Caching Prevention**: Avoids re-browsing the same URLs within a conversation turn
+- **Memory Efficiency**: Conversation summarization to maintain performance over long sessions
 
-## 🔄 Updates & Maintenance
+### Current Limitations
+- **URL Access**: Can only browse publicly accessible URLs (no authentication required)
+- **Content Size**: Very large pages may be truncated for processing efficiency
+- **Rate Limits**: Subject to Google Gemini API rate limiting
+- **Browser Permissions**: Requires userscript manager with appropriate permissions
 
-### Auto-Updates
-The userscript automatically updates through your userscript manager when new versions are released.
-
-### Manual Updates
-Check the [GitHub repository](https://github.com/galpt/adguard-userscripts) for the latest version and changelog.
-
-## 🤝 Contributing
-
-Found a bug or have a feature request? Please open an issue on the [GitHub repository](https://github.com/galpt/adguard-userscripts/issues).
-
-## 📜 License
-
-This project is licensed under the MIT License - see the repository for details.
+### Future Enhancements
+- **Visual Content Analysis**: Potential integration with Gemini's vision capabilities
+- **Advanced Caching**: More sophisticated content caching across sessions
+- **Batch Processing**: Parallel URL browsing for faster multi-source analysis
+- **Enhanced Memory**: More sophisticated conversation history management
 
 ---
 
-**Transform your browsing experience with AI-powered intelligence and real-time webpage manipulation!** 🚀✨ 
+**Experience the future of AI-powered browsing with intelligent multi-source analysis, conversation memory, and seamless context integration!** 🚀✨ 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Browsing Agent (Gemini-Powered)
 // @namespace    https://github.com/galpt/adguard-userscripts
-// @version      4.3.0
+// @version      4.4.0
 // @description  Intelligent browsing assistant powered by Google Gemini API with function-calling, URL browsing, real-time DOM manipulation, and advanced content analysis
 // @author       galpt
 // @match        *://*/*
@@ -21,7 +21,7 @@
 
     // Configuration
     const CONFIG = {
-        version: '4.3.0',
+        version: '4.4.0',
         apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
         defaultModel: 'gemini-2.5-flash',
         models: {
@@ -88,10 +88,26 @@
         uiManager: null
     };
 
+    // Add conversation management
+    const CONVERSATION_CONFIG = {
+        maxHistoryPairs: 10, // Maximum conversation pairs to keep in direct context
+        maxTokens: 8000, // Approximate token limit for context
+        summaryThreshold: 5, // Number of pairs before considering summarization
+        maxBrowsingDepth: 3, // Maximum URLs to browse in one turn
+        maxExistingSummaryLength: 2000 // Max chars for existing summary in prompts
+    };
+
     // Utilities
     const utils = {
         log: (...args) => {
             if (CONFIG.debug) console.log('[AI Browsing Agent]', ...args);
+        },
+
+        // Estimate token count (rough approximation)
+        estimateTokens: (text) => {
+            if (typeof text !== 'string') return 0;
+            // Rough approximation: 1 token ≈ 4 characters for English text
+            return Math.ceil(text.length / 4);
         },
 
         // Safe HTML setter to handle TrustedHTML requirements
@@ -300,10 +316,12 @@ Remember: You are not just a text assistant - you are an active browser agent th
         }
 
         async browseUrl(params) {
-            if (this.browsedUrls.has(params.url)) {
+            const geminiClient = STATE.geminiClient;
+
+            if (geminiClient.currentTurnBrowsedURLs.has(params.url)) {
                 return {
                     success: true,
-                    result: 'URL already browsed in this session',
+                    result: 'URL already browsed in this turn',
                     cached: true
                 };
             }
@@ -314,7 +332,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
                     GM_xmlhttpRequest({
                         method: 'GET',
                         url: params.url,
-                        timeout: 10000,
+                        timeout: 15000,
                         onload: resolve,
                         onerror: reject,
                         ontimeout: () => reject(new Error('Request timeout'))
@@ -322,8 +340,9 @@ Remember: You are not just a text assistant - you are an active browser agent th
                 });
 
                 if (response.status === 200) {
-                    this.browsedUrls.add(params.url);
+                    geminiClient.currentTurnBrowsedURLs.add(params.url);
                     const content = this.extractTextFromHTML(response.responseText);
+                    const title = this.extractTitleFromHTML(response.responseText);
 
                     this.actionHistory.push({
                         action: 'browse',
@@ -332,19 +351,151 @@ Remember: You are not just a text assistant - you are an active browser agent th
                         description: params.description
                     });
 
+                    // Intelligent content summarization for this URL
+                    await this.summarizeUrlContent(params.url, content, params.description || 'user request');
+
                     return {
                         success: true,
-                        result: `Successfully browsed ${params.url}. Content: ${content.slice(0, 8000)}...`,
+                        result: `Successfully browsed ${params.url}. Content summarized and added to context.`,
                         content: content,
-                        title: this.extractTitleFromHTML(response.responseText)
+                        title: title,
+                        summarized: true
                     };
                 } else {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
             } catch (error) {
+                // Add failed URL to browsed set to avoid retrying
+                geminiClient.currentTurnBrowsedURLs.add(params.url);
+                geminiClient.currentTurnAccumulatedSummary += `\n\n[Failed to fetch content from ${params.url}: ${error.message}]`;
+
                 return {
                     success: false,
                     error: `Failed to browse ${params.url}: ${error.message}`
+                };
+            }
+        }
+
+        async summarizeUrlContent(url, content, userQuery) {
+            const geminiClient = STATE.geminiClient;
+
+            if (!content || content.trim().length === 0) {
+                geminiClient.currentTurnAccumulatedSummary += `\n\n[No content found at ${url}]`;
+                return;
+            }
+
+            // Progressive content reduction if too large
+            let contentToSummarize = content;
+            if (contentToSummarize.length > 50000) {
+                contentToSummarize = contentToSummarize.substring(0, 50000);
+            }
+
+            // Further reduce based on accumulated summary size
+            let existingSummary = geminiClient.currentTurnAccumulatedSummary;
+            const maxTotalLength = 15000; // Target total length
+
+            if (existingSummary.length + contentToSummarize.length > maxTotalLength) {
+                const remainingSpace = maxTotalLength - existingSummary.length;
+                contentToSummarize = contentToSummarize.substring(0, Math.max(remainingSpace * 0.7, 1000));
+            }
+
+            const summarizePrompt = `Please summarize the following web content in relation to this user query: "${userQuery}"
+
+${existingSummary ? `Existing summary: ${existingSummary}\n\n` : ''}
+
+New content from ${url}:
+${contentToSummarize}
+
+Provide a comprehensive summary that:
+1. Integrates with any existing summary
+2. Focuses on information relevant to the user query
+3. Maintains important details and context
+4. Is concise but thorough
+
+Format as: Updated comprehensive summary covering all browsed content so far.`;
+
+            try {
+                const summary = await geminiClient.sendRawMessage(summarizePrompt);
+                geminiClient.currentTurnAccumulatedSummary = summary || `Content from ${url}: ${contentToSummarize.substring(0, 1000)}...`;
+            } catch (error) {
+                console.warn('Failed to summarize content from:', url, error);
+                // Fallback to basic content inclusion
+                if (geminiClient.currentTurnAccumulatedSummary) {
+                    geminiClient.currentTurnAccumulatedSummary += `\n\nContent from ${url}: ${contentToSummarize.substring(0, 1000)}...`;
+                } else {
+                    geminiClient.currentTurnAccumulatedSummary = `Content from ${url}: ${contentToSummarize.substring(0, 1000)}...`;
+                }
+            }
+        }
+
+        async intelligentBrowsingFlow(userMessage) {
+            const geminiClient = STATE.geminiClient;
+            const urls = this.extractURLs(userMessage);
+
+            if (urls.length === 0) return false;
+
+            // Reset browsing state for new turn
+            geminiClient.resetTurnBrowsingState();
+
+            // Browse first URL
+            const firstUrl = urls[0];
+            await this.browseUrl({ url: firstUrl, description: userMessage });
+
+            // Intelligent decision-making for additional URLs
+            while (geminiClient.currentTurnBrowsingDepth < CONVERSATION_CONFIG.maxBrowsingDepth && urls.length > 1) {
+                const shouldBrowseMore = await this.shouldBrowseAdditionalUrls(userMessage, urls.slice(1));
+
+                if (!shouldBrowseMore.continue) break;
+
+                const nextUrl = shouldBrowseMore.nextUrl || urls[geminiClient.currentTurnBrowsingDepth + 1];
+                if (nextUrl && !geminiClient.currentTurnBrowsedURLs.has(nextUrl)) {
+                    geminiClient.currentTurnBrowsingDepth++;
+                    await this.browseUrl({ url: nextUrl, description: userMessage });
+                } else {
+                    break;
+                }
+            }
+
+            return true;
+        }
+
+        async shouldBrowseAdditionalUrls(userQuery, remainingUrls) {
+            const geminiClient = STATE.geminiClient;
+
+            if (remainingUrls.length === 0) return { continue: false };
+
+            const decisionPrompt = `Based on the user query and current browsed content, should I browse additional URLs?
+
+User Query: "${userQuery}"
+
+Current Summary: ${geminiClient.currentTurnAccumulatedSummary}
+
+Already Browsed: ${Array.from(geminiClient.currentTurnBrowsedURLs).join(', ')}
+
+Remaining URLs: ${remainingUrls.join(', ')}
+
+Respond with JSON:
+{
+  "is_sufficient": boolean,
+  "next_urls_to_browse": ["url1", "url2"],
+  "reasoning": "explanation"
+}`;
+
+            try {
+                const response = await geminiClient.sendRawMessage(decisionPrompt);
+                const decision = JSON.parse(response.replace(/```json\n?|\n?```/g, ''));
+
+                return {
+                    continue: !decision.is_sufficient && decision.next_urls_to_browse?.length > 0,
+                    nextUrl: decision.next_urls_to_browse?.[0],
+                    reasoning: decision.reasoning
+                };
+            } catch (error) {
+                console.warn('Failed to get browsing decision:', error);
+                // Default to browse one more URL if we have space
+                return {
+                    continue: geminiClient.currentTurnBrowsingDepth < 2,
+                    nextUrl: remainingUrls[0]
                 };
             }
         }
@@ -1142,6 +1293,16 @@ Remember: You are not just a text assistant - you are an active browser agent th
             this.functionOrchestrator = new FunctionOrchestrator();
             // Keep legacy reference for backward compatibility
             this.domManipulator = this.functionOrchestrator;
+
+            // Conversation history management
+            this.conversationHistory = this.loadConversationHistory();
+            this.conversationSummary = "";
+            this.currentDetectedLanguage = 'en';
+
+            // URL browsing state
+            this.currentTurnBrowsedURLs = new Set();
+            this.currentTurnAccumulatedSummary = "";
+            this.currentTurnBrowsingDepth = 0;
         }
 
         setApiKey(apiKey) {
@@ -1155,6 +1316,93 @@ Remember: You are not just a text assistant - you are an active browser agent th
             GM_setValue(CONFIG.storage.selectedModel, model);
         }
 
+        // Conversation History Management
+        loadConversationHistory() {
+            try {
+                const stored = GM_getValue(CONFIG.storage.conversationHistory, '[]');
+                return JSON.parse(stored);
+            } catch (error) {
+                console.warn('Failed to load conversation history:', error);
+                return [];
+            }
+        }
+
+        saveConversationHistory() {
+            try {
+                GM_setValue(CONFIG.storage.conversationHistory, JSON.stringify(this.conversationHistory));
+            } catch (error) {
+                console.warn('Failed to save conversation history:', error);
+            }
+        }
+
+        addToConversationHistory(role, content, isInternal = false) {
+            this.conversationHistory.push({
+                role,
+                content,
+                timestamp: Date.now(),
+                isInternal
+            });
+            this.saveConversationHistory();
+        }
+
+        getRecentConversationHistory(maxPairs = CONVERSATION_CONFIG.maxHistoryPairs) {
+            // Filter out internal messages and get recent user/assistant pairs
+            const directHistory = this.conversationHistory.filter(msg => !msg.isInternal);
+            return directHistory.slice(-maxPairs * 2); // 2 messages per pair
+        }
+
+        clearConversationHistory() {
+            this.conversationHistory = [];
+            this.conversationSummary = "";
+            this.saveConversationHistory();
+        }
+
+        async manageConversationContext(currentUserQuery) {
+            const directHistory = this.getRecentConversationHistory();
+            let historyTokens = 0;
+
+            for (const msg of directHistory) {
+                historyTokens += utils.estimateTokens(msg.content);
+            }
+
+            // If history is too long, summarize older messages
+            if (historyTokens > CONVERSATION_CONFIG.maxTokens && this.conversationHistory.length > CONVERSATION_CONFIG.summaryThreshold * 2) {
+                await this.summarizeOlderMessages();
+            }
+        }
+
+        async summarizeOlderMessages() {
+            const directHistory = this.conversationHistory.filter(msg => !msg.isInternal);
+            if (directHistory.length <= 4) return; // Keep at least 2 pairs
+
+            const messagesToSummarize = directHistory.slice(0, -6); // Keep last 3 pairs unsummarized
+            if (messagesToSummarize.length === 0) return;
+
+            const summaryPrompt = `Please provide a concise summary of this conversation history:
+${messagesToSummarize.map(msg => `${msg.role}: ${msg.content.substring(0, 500)}`).join('\n')}
+
+Provide a brief summary that captures the key points and context.`;
+
+            try {
+                const summary = await this.sendRawMessage(summaryPrompt);
+                this.conversationSummary = summary;
+
+                // Remove summarized messages from history
+                this.conversationHistory = this.conversationHistory.filter(msg =>
+                    msg.isInternal || !messagesToSummarize.includes(msg)
+                );
+                this.saveConversationHistory();
+            } catch (error) {
+                console.warn('Failed to summarize conversation history:', error);
+            }
+        }
+
+        resetTurnBrowsingState() {
+            this.currentTurnBrowsedURLs.clear();
+            this.currentTurnAccumulatedSummary = "";
+            this.currentTurnBrowsingDepth = 0;
+        }
+
         async sendMessage(prompt, context = '') {
             if (!this.apiKey) {
                 throw new Error('API key not configured. Please add your Gemini API key in settings.');
@@ -1165,7 +1413,21 @@ Remember: You are not just a text assistant - you are an active browser agent th
                 throw new Error(`Unknown model: ${this.selectedModel}`);
             }
 
-            const fullPrompt = context ? `${context}\n\nUser query: ${prompt}` : prompt;
+            // Build conversation context
+            let conversationContext = '';
+            if (this.conversationSummary) {
+                conversationContext += `Previous conversation summary: ${this.conversationSummary}\n\n`;
+            }
+
+            const recentHistory = this.getRecentConversationHistory();
+            if (recentHistory.length > 0) {
+                conversationContext += 'Recent conversation:\n';
+                conversationContext += recentHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n') + '\n\n';
+            }
+
+            const fullPrompt = context ?
+                `${conversationContext}${context}\n\nUser query: ${prompt}` :
+                `${conversationContext}User query: ${prompt}`;
 
             return new Promise((resolve, reject) => {
                 const requestData = this.buildRequestData(modelInfo, fullPrompt);
@@ -1199,6 +1461,49 @@ Remember: You are not just a text assistant - you are an active browser agent th
                         reject(new Error('Request timed out'));
                     },
                     timeout: 60000 // Longer timeout for image/video generation
+                });
+            });
+        }
+
+        async sendRawMessage(prompt) {
+            // For internal operations like summarization, without conversation context
+            if (!this.apiKey) {
+                throw new Error('API key not configured.');
+            }
+
+            const modelInfo = CONFIG.models[this.selectedModel];
+            if (!modelInfo) {
+                throw new Error(`Unknown model: ${this.selectedModel}`);
+            }
+
+            return new Promise((resolve, reject) => {
+                const requestData = this.buildRequestData(modelInfo, prompt);
+                const endpoint = this.buildEndpoint(modelInfo);
+
+                GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: endpoint,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': this.apiKey
+                    },
+                    data: JSON.stringify(requestData),
+                    onload: (response) => {
+                        try {
+                            if (response.status === 200) {
+                                const result = this.parseResponse(response.responseText, modelInfo);
+                                resolve(result);
+                            } else {
+                                const errorData = JSON.parse(response.responseText);
+                                reject(new Error(errorData.error?.message || `API Error: ${response.status}`));
+                            }
+                        } catch (error) {
+                            reject(new Error('Failed to parse API response: ' + error.message));
+                        }
+                    },
+                    onerror: () => reject(new Error('Network error occurred')),
+                    ontimeout: () => reject(new Error('Request timed out')),
+                    timeout: 30000
                 });
             });
         }
@@ -1527,6 +1832,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
                             <button class="quick-action" data-action="summarize" title="Analyze and summarize the main content, key points, and topics of this page" style="padding: 8px 16px; background: rgba(63, 131, 248, 0.08); border: 1px solid rgba(63, 131, 248, 0.2); border-radius: 8px; color: #3f83f8; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">📋 Summarize</button>
                             <button class="quick-action" data-action="clean" title="Remove ads, popups, and distracting elements to clean up the page layout" style="padding: 8px 16px; background: rgba(49, 196, 141, 0.08); border: 1px solid rgba(49, 196, 141, 0.2); border-radius: 8px; color: #31c48d; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">🧹 Clean Page</button>
                             <button class="quick-action" data-action="dom-demo" title="Demonstrate AI's ability to modify web pages by adding a sample button" style="padding: 8px 16px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px; color: #a855f7; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">🔧 DOM Demo</button>
+                            <button class="quick-action" data-action="clear-history" title="Clear conversation history and start fresh" style="padding: 8px 16px; background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.2); border-radius: 8px; color: #f87171; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">🗑️ Clear History</button>
                             <button class="quick-action" data-action="settings" title="Configure your Gemini API key, model selection, and other preferences" style="padding: 8px 16px; background: rgba(246, 173, 85, 0.08); border: 1px solid rgba(246, 173, 85, 0.2); border-radius: 8px; color: #f6ad55; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">⚙️ Settings</button>
                         </div>
                     </div>
@@ -1698,8 +2004,29 @@ Remember: You are not just a text assistant - you are an active browser agent th
                 statusText = '🔑 Please configure your API key in settings to get started.';
             } else {
                 const modelInfo = CONFIG.models[geminiClient.selectedModel];
-                statusText = `✅ Ready and connected`;
+                const historyCount = geminiClient.conversationHistory.length;
+                statusText = `✅ Ready with intelligent browsing & conversation memory`;
+
+                const historyBadge = historyCount > 0 ? `
+                    <div style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        background: rgba(49, 196, 141, 0.1);
+                        border: 1px solid rgba(49, 196, 141, 0.2);
+                        border-radius: 8px;
+                        padding: 6px 12px;
+                        margin-top: 8px;
+                        margin-right: 8px;
+                        font-size: 12px;
+                        color: #31c48d;
+                        font-weight: 500;
+                    ">
+                        💬 ${historyCount} message${historyCount === 1 ? '' : 's'} in history
+                    </div>` : '';
+
                 modelBadge = `
+                    ${historyBadge}
                     <div style="
                         display: inline-flex;
                         align-items: center;
@@ -1736,7 +2063,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
                     </div>
                     ${modelBadge}
                     <div style="font-size: 13px; color: #64748b; margin-top: 16px; line-height: 1.5;">
-                        I can help you analyze, summarize, and interact with web content. Try asking me about this page or use the quick actions below.
+                        I'm your intelligent browsing assistant with conversation memory! I can analyze pages, browse URLs intelligently, summarize content from multiple sources, and remember our conversation context. Try asking me about this page, give me URLs to analyze, or use the quick actions below.
                     </div>
                 </div>
             `);
@@ -1753,10 +2080,30 @@ Remember: You are not just a text assistant - you are an active browser agent th
                 case 'dom-demo':
                     await this.processMessage('Add a purple button that says "AI Created!" in the top right corner of the page with nice styling');
                     break;
+                case 'clear-history':
+                    this.clearConversationHistory();
+                    break;
                 case 'settings':
                     this.showSettings();
                     break;
             }
+        }
+
+        clearConversationHistory() {
+            const geminiClient = STATE.geminiClient;
+            geminiClient.clearConversationHistory();
+
+            // Clear chat UI
+            const chat = this.modal.querySelector('#ai-agent-chat');
+            chat.innerHTML = '';
+
+            // Show confirmation message
+            this.addChatMessage('system', '🧹 Conversation history cleared. Starting fresh!', false, 'normal');
+
+            // Show welcome message again
+            setTimeout(() => {
+                this.showWelcomeMessage();
+            }, 1000);
         }
 
         async sendMessage() {
@@ -1770,18 +2117,95 @@ Remember: You are not just a text assistant - you are an active browser agent th
         }
 
         async processMessage(message) {
-            const chat = this.modal.querySelector('#ai-agent-chat');
+            if (!message.trim()) return;
 
-            // Add user message
+            const geminiClient = STATE.geminiClient;
+
+            // Add user message to chat and conversation history
             this.addChatMessage('user', message);
+            geminiClient.addToConversationHistory('user', message);
 
             try {
-                // Start orchestration flow
-                await this.orchestrateResponse(message);
+                // Manage conversation context
+                await geminiClient.manageConversationContext(message);
+
+                // Check for URLs and use intelligent browsing flow
+                const orchestrator = geminiClient.functionOrchestrator;
+                const hasUrls = orchestrator.extractURLs(message).length > 0;
+
+                if (hasUrls) {
+                    await this.intelligentBrowsingOrchestration(message);
+                } else {
+                    await this.standardOrchestration(message);
+                }
 
             } catch (error) {
                 this.addChatMessage('assistant', `❌ Error: ${error.message}`, false, 'error');
                 console.error('Process message error:', error);
+            }
+        }
+
+        async intelligentBrowsingOrchestration(message) {
+            const geminiClient = STATE.geminiClient;
+            const orchestrator = geminiClient.functionOrchestrator;
+
+            // Show browsing status
+            const browsingId = this.addChatMessage('assistant', '🌐 Intelligently browsing URLs...', true);
+
+            try {
+                // Intelligent URL browsing
+                await orchestrator.intelligentBrowsingFlow(message);
+                this.removeChatMessage(browsingId);
+
+                // Generate final response with browsed content
+                await this.generateBrowsingResponse(message);
+            } catch (error) {
+                this.removeChatMessage(browsingId);
+                this.addChatMessage('assistant', `❌ Browsing error: ${error.message}`, false, 'error');
+                console.error('Browsing orchestration error:', error);
+            }
+        }
+
+        async generateBrowsingResponse(userMessage) {
+            const geminiClient = STATE.geminiClient;
+            const content = utils.extractPageContent();
+
+            // Build enhanced context with browsed content
+            const systemPrompt = geminiClient.functionOrchestrator.generateSystemPrompt(content);
+            const browsingContext = geminiClient.currentTurnAccumulatedSummary ?
+                `\n\nBROWSED CONTENT SUMMARY:\n${geminiClient.currentTurnAccumulatedSummary}\n\nBrowsed URLs: ${Array.from(geminiClient.currentTurnBrowsedURLs).join(', ')}` : '';
+
+            const finalPrompt = `${systemPrompt}${browsingContext}
+
+Please provide a comprehensive response to the user's query based on the current page and any browsed content. Focus on:
+1. Directly answering the user's question
+2. Integrating information from all browsed sources
+3. Providing actionable insights
+4. Being clear and concise
+
+Remember: You are analyzing content from multiple sources. Make sure to synthesize the information effectively.`;
+
+            try {
+                const response = await geminiClient.sendMessage(userMessage, finalPrompt);
+                this.addChatMessage('assistant', response);
+                geminiClient.addToConversationHistory('assistant', response);
+            } catch (error) {
+                this.addChatMessage('assistant', `❌ Failed to generate response: ${error.message}`, false, 'error');
+                console.error('Response generation error:', error);
+            }
+        }
+
+        async standardOrchestration(message) {
+            // Use existing orchestration logic but with conversation history
+            await this.orchestrateResponse(message);
+
+            // Add assistant response to conversation history
+            const lastAssistantMessage = Array.from(this.modal.querySelectorAll('.ai-agent-message.assistant')).pop();
+            if (lastAssistantMessage) {
+                const responseText = lastAssistantMessage.textContent || '';
+                if (responseText && !responseText.includes('❌')) {
+                    STATE.geminiClient.addToConversationHistory('assistant', responseText);
+                }
             }
         }
 
