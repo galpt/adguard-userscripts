@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Browsing Agent (Gemini-Powered)
 // @namespace    https://github.com/galpt/adguard-userscripts
-// @version      4.1.0
+// @version      4.3.0
 // @description  Intelligent browsing assistant powered by Google Gemini API with function-calling, URL browsing, real-time DOM manipulation, and advanced content analysis
 // @author       galpt
 // @match        *://*/*
@@ -21,7 +21,7 @@
 
     // Configuration
     const CONFIG = {
-        version: '4.1.0',
+        version: '4.3.0',
         apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
         defaultModel: 'gemini-2.5-flash',
         models: {
@@ -174,22 +174,26 @@ Content Preview: ${pageContext.text.slice(0, 1000)}...
 AVAILABLE FUNCTIONS:
 You can call browser functions by including JSON function calls in your response. Functions available:
 
-1. **browseUrl** - Fetch and analyze content from URLs
+1. **discoverElements** - Discover page structure and available elements BEFORE manipulation
+   {"function": "discoverElements", "focus": "all", "limit": 20, "description": "Discovering page structure"}
+   Focus options: "all", "headings", "content", "navigation", "interactive"
+
+2. **browseUrl** - Fetch and analyze content from URLs
    {"function": "browseUrl", "url": "https://example.com", "description": "Fetching example.com"}
 
-2. **createElement** - Create new DOM elements
+3. **createElement** - Create new DOM elements
    {"function": "createElement", "element": "button", "text": "Click me", "styles": {"color": "red"}, "target": "body", "position": "append", "description": "Creating a red button"}
 
-3. **removeElement** - Remove DOM elements
+4. **removeElement** - Remove DOM elements (use discoverElements first!)
    {"function": "removeElement", "selector": ".ads, [id*='ad']", "description": "Removing advertisements"}
 
-4. **modifyElement** - Modify existing DOM elements
+5. **modifyElement** - Modify existing DOM elements (use discoverElements first!)
    {"function": "modifyElement", "selector": "h1", "styles": {"color": "blue"}, "description": "Making headers blue"}
 
-5. **addStyles** - Add CSS styles to page
+6. **addStyles** - Add CSS styles to page
    {"function": "addStyles", "css": "body { background: black; }", "description": "Adding dark background"}
 
-6. **analyzeContent** - Deep analysis of current page
+7. **analyzeContent** - Deep analysis of current page
    {"function": "analyzeContent", "focus": "main content", "description": "Analyzing page content"}
 
 FUNCTION CALL FORMAT:
@@ -212,8 +216,15 @@ FUNCTION EXECUTION RULES:
 2. Function calls will be executed automatically and results will be available
 3. Always include a "description" field explaining what the function does
 4. If a user mentions URLs, automatically browse them using browseUrl
-5. For DOM manipulation requests, use appropriate DOM functions
+5. For DOM manipulation requests, ALWAYS use discoverElements FIRST to understand page structure
 6. Multiple function calls in one response are allowed and encouraged
+
+DOM MANIPULATION BEST PRACTICES:
+- NEVER attempt to modify elements without first discovering what's available
+- Use discoverElements to find valid selectors before modifyElement or removeElement
+- If elements aren't found, the system will suggest alternatives automatically
+- Start with broad discovery (focus: "all") then narrow down (focus: "content", "headings", etc.)
+- Test modifications on safe elements first
 
 RESPONSE GUIDELINES:
 - Be conversational and helpful
@@ -221,8 +232,16 @@ RESPONSE GUIDELINES:
 - Don't ask permission to use functions - just use them when appropriate
 - Explain what you're doing as you do it
 - If functions fail, handle errors gracefully and suggest alternatives
+- For DOM tasks: Discover → Analyze → Modify (in that order)
 
-Remember: You are not just a text assistant - you are an active browser agent that can actually perform actions!`;
+ORCHESTRATION INTELLIGENCE:
+- This system supports multi-turn function calling - you can chain operations
+- If a user asks to "edit the title", discover elements first, then modify in a follow-up
+- Don't just discover and stop - complete the full task the user requested
+- The system will automatically continue your work across multiple AI calls
+- Be proactive: if you see discovered elements that match the user's intent, use them
+
+Remember: You are not just a text assistant - you are an active browser agent that can actually perform actions! Complete tasks end-to-end automatically.`;
         }
 
         extractFunctionCalls(responseText) {
@@ -265,6 +284,8 @@ Remember: You are not just a text assistant - you are an active browser agent th
                         return await this.addStyles(functionCall);
                     case 'analyzeContent':
                         return await this.analyzeContent(functionCall);
+                    case 'discoverElements':
+                        return await this.discoverElements(functionCall);
                     default:
                         throw new Error(`Unknown function: ${functionCall.function}`);
                 }
@@ -449,12 +470,33 @@ Remember: You are not just a text assistant - you are an active browser agent th
         }
 
         async modifyElement(params) {
-            const elements = document.querySelectorAll(params.selector);
+            let elements = document.querySelectorAll(params.selector);
+            let actualSelector = params.selector;
+            let fallbackUsed = false;
+
+            // If no elements found, try intelligent fallbacks
             if (elements.length === 0) {
-                return {
-                    success: false,
-                    error: `No elements found with selector: ${params.selector}`
-                };
+                const fallbacks = this.generateFallbackSelectors(params.selector);
+
+                for (const fallback of fallbacks) {
+                    elements = document.querySelectorAll(fallback);
+                    if (elements.length > 0) {
+                        actualSelector = fallback;
+                        fallbackUsed = true;
+                        break;
+                    }
+                }
+
+                // If still no elements, provide helpful suggestions
+                if (elements.length === 0) {
+                    const suggestions = await this.suggestAlternativeSelectors(params.selector);
+                    return {
+                        success: false,
+                        error: `No elements found with selector: ${params.selector}`,
+                        suggestions: suggestions,
+                        fallbacksAttempted: fallbacks
+                    };
+                }
             }
 
             elements.forEach(element => {
@@ -476,16 +518,115 @@ Remember: You are not just a text assistant - you are an active browser agent th
 
             this.actionHistory.push({
                 action: 'modify',
-                selector: params.selector,
+                selector: actualSelector,
+                originalSelector: params.selector,
+                fallbackUsed: fallbackUsed,
                 timestamp: Date.now(),
                 description: params.description
             });
 
+            let resultMessage = params.description || `Modified ${elements.length} element(s)`;
+            if (fallbackUsed) {
+                resultMessage += ` (used fallback selector: ${actualSelector})`;
+            }
+
             return {
                 success: true,
-                result: params.description || `Modified ${elements.length} element(s)`,
-                modifiedCount: elements.length
+                result: resultMessage,
+                modifiedCount: elements.length,
+                selectorUsed: actualSelector,
+                fallbackUsed: fallbackUsed
             };
+        }
+
+        generateFallbackSelectors(originalSelector) {
+            const fallbacks = [];
+
+            // If it's a class selector, try variations
+            if (originalSelector.startsWith('.')) {
+                const className = originalSelector.substring(1);
+                fallbacks.push(`[class*="${className}"]`);
+                fallbacks.push(`[class^="${className}"]`);
+                fallbacks.push(`[class$="${className}"]`);
+            }
+
+            // If it's an ID selector, try variations
+            if (originalSelector.startsWith('#')) {
+                const idName = originalSelector.substring(1);
+                fallbacks.push(`[id*="${idName}"]`);
+                fallbacks.push(`[id^="${idName}"]`);
+                fallbacks.push(`[id$="${idName}"]`);
+            }
+
+            // Try common element patterns
+            if (originalSelector.includes('notice')) {
+                fallbacks.push('.notice', '.notification', '.alert', '.message', '[class*="notice"]');
+            }
+
+            if (originalSelector.includes('content')) {
+                fallbacks.push('main', 'article', '.content', '.main-content', '#content', '[class*="content"]');
+            }
+
+            if (originalSelector.includes('nav')) {
+                fallbacks.push('nav', '.nav', '.navigation', '.menu', '[class*="nav"]');
+            }
+
+            if (originalSelector.includes('header')) {
+                fallbacks.push('header', '.header', '.page-header', '[class*="header"]');
+            }
+
+            if (originalSelector.includes('footer')) {
+                fallbacks.push('footer', '.footer', '.page-footer', '[class*="footer"]');
+            }
+
+            return [...new Set(fallbacks)]; // Remove duplicates
+        }
+
+        async suggestAlternativeSelectors(failedSelector) {
+            // Analyze the page structure to suggest alternatives
+            try {
+                const suggestions = [];
+
+                // Find similar elements based on the failed selector
+                if (failedSelector.includes('notice') || failedSelector.includes('alert')) {
+                    const alerts = document.querySelectorAll('.alert, .notice, .notification, .message, .warning, .info');
+                    alerts.forEach(el => {
+                        suggestions.push({
+                            selector: this.generateSelector(el),
+                            type: 'similar element',
+                            text: el.textContent.slice(0, 50)
+                        });
+                    });
+                }
+
+                if (failedSelector.includes('content')) {
+                    const contentAreas = document.querySelectorAll('main, article, .content, #content, .main-content');
+                    contentAreas.forEach(el => {
+                        suggestions.push({
+                            selector: this.generateSelector(el),
+                            type: 'content area',
+                            text: el.textContent.slice(0, 50)
+                        });
+                    });
+                }
+
+                // If no specific suggestions, find the most common elements
+                if (suggestions.length === 0) {
+                    const commonElements = document.querySelectorAll('div, section, article, main, p, h1, h2, h3');
+                    Array.from(commonElements).slice(0, 5).forEach(el => {
+                        suggestions.push({
+                            selector: this.generateSelector(el),
+                            type: 'common element',
+                            text: el.textContent.slice(0, 50)
+                        });
+                    });
+                }
+
+                return suggestions.slice(0, 5); // Limit to 5 suggestions
+
+            } catch (error) {
+                return [{ error: 'Could not generate suggestions' }];
+            }
         }
 
         async addStyles(params) {
@@ -591,6 +732,163 @@ Remember: You are not just a text assistant - you are an active browser agent th
                     focus: focus
                 }
             };
+        }
+
+        async discoverElements(params) {
+            const focus = params.focus || 'all';
+            const limit = params.limit || 20;
+
+            let discovery = {
+                timestamp: new Date().toISOString(),
+                focus: focus,
+                elements: []
+            };
+
+            try {
+                let selectors = [];
+
+                if (focus === 'all' || focus === 'headings') {
+                    // Find headings
+                    const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                    headings.forEach((el, i) => {
+                        if (i < limit) {
+                            selectors.push({
+                                type: 'heading',
+                                tagName: el.tagName.toLowerCase(),
+                                text: el.textContent.slice(0, 100),
+                                selector: this.generateSelector(el),
+                                id: el.id || null,
+                                className: el.className || null
+                            });
+                        }
+                    });
+                }
+
+                if (focus === 'all' || focus === 'content') {
+                    // Find main content areas
+                    const contentSelectors = [
+                        'main', 'article', '.content', '.main-content', '.post', '.entry',
+                        '.mw-content-text', '.page-content', '#content', '#main'
+                    ];
+
+                    contentSelectors.forEach(selector => {
+                        const elements = document.querySelectorAll(selector);
+                        elements.forEach((el, i) => {
+                            if (i < 3) { // Limit content elements
+                                selectors.push({
+                                    type: 'content-area',
+                                    tagName: el.tagName.toLowerCase(),
+                                    text: el.textContent.slice(0, 150),
+                                    selector: selector,
+                                    id: el.id || null,
+                                    className: el.className || null,
+                                    childCount: el.children.length
+                                });
+                            }
+                        });
+                    });
+                }
+
+                if (focus === 'all' || focus === 'navigation') {
+                    // Find navigation elements
+                    const navElements = document.querySelectorAll('nav, .nav, .navigation, .menu, #menu');
+                    navElements.forEach((el, i) => {
+                        if (i < 5) {
+                            selectors.push({
+                                type: 'navigation',
+                                tagName: el.tagName.toLowerCase(),
+                                text: el.textContent.slice(0, 100),
+                                selector: this.generateSelector(el),
+                                id: el.id || null,
+                                className: el.className || null
+                            });
+                        }
+                    });
+                }
+
+                if (focus === 'all' || focus === 'interactive') {
+                    // Find buttons, links, forms
+                    const interactive = document.querySelectorAll('button, input, a, form, .btn, .button');
+                    interactive.forEach((el, i) => {
+                        if (i < 10) {
+                            selectors.push({
+                                type: 'interactive',
+                                tagName: el.tagName.toLowerCase(),
+                                text: (el.textContent || el.value || el.placeholder || '').slice(0, 50),
+                                selector: this.generateSelector(el),
+                                id: el.id || null,
+                                className: el.className || null,
+                                href: el.href || null
+                            });
+                        }
+                    });
+                }
+
+                discovery.elements = selectors.slice(0, limit);
+                discovery.totalFound = selectors.length;
+
+                this.actionHistory.push({
+                    action: 'discover',
+                    focus: focus,
+                    timestamp: Date.now(),
+                    description: params.description
+                });
+
+                let result = `**Element Discovery Results:**\n\n`;
+                result += `**Focus:** ${focus}\n`;
+                result += `**Found:** ${discovery.totalFound} elements (showing ${discovery.elements.length})\n\n`;
+
+                discovery.elements.forEach((elem, i) => {
+                    result += `${i + 1}. **${elem.type}** (${elem.tagName})\n`;
+                    result += `   - Selector: \`${elem.selector}\`\n`;
+                    if (elem.text) result += `   - Text: "${elem.text}${elem.text.length >= 50 ? '...' : ''}"\n`;
+                    if (elem.id) result += `   - ID: ${elem.id}\n`;
+                    if (elem.className) result += `   - Classes: ${elem.className}\n`;
+                    result += '\n';
+                });
+
+                return {
+                    success: true,
+                    result: result,
+                    discovery: discovery
+                };
+
+            } catch (error) {
+                return {
+                    success: false,
+                    error: `Element discovery failed: ${error.message}`
+                };
+            }
+        }
+
+        generateSelector(element) {
+            // Generate a robust CSS selector for an element
+            if (element.id) {
+                return `#${element.id}`;
+            }
+
+            if (element.className) {
+                const classes = element.className.split(' ').filter(c => c.trim());
+                if (classes.length > 0) {
+                    return `.${classes[0]}`;
+                }
+            }
+
+            let selector = element.tagName.toLowerCase();
+            let parent = element.parentElement;
+
+            if (parent && parent !== document.body) {
+                const siblings = Array.from(parent.children).filter(child =>
+                    child.tagName === element.tagName
+                );
+
+                if (siblings.length > 1) {
+                    const index = siblings.indexOf(element) + 1;
+                    selector += `:nth-of-type(${index})`;
+                }
+            }
+
+            return selector;
         }
 
         extractURLs(text) {
@@ -1477,104 +1775,256 @@ Remember: You are not just a text assistant - you are an active browser agent th
             // Add user message
             this.addChatMessage('user', message);
 
-            // Add loading message
-            const loadingId = this.addChatMessage('assistant', '🤔 Thinking...', true);
-
             try {
-                const content = utils.extractPageContent();
-                const geminiClient = STATE.geminiClient;
-                const orchestrator = geminiClient.functionOrchestrator;
-
-                // Check for URLs in the message and browse them first
-                const urls = orchestrator.extractURLs(message);
-                let browsedContext = '';
-
-                if (urls.length > 0) {
-                    this.removeChatMessage(loadingId);
-                    const browsingId = this.addChatMessage('assistant', `🌐 Browsing ${urls.length} URL(s)...`, true);
-
-                    for (const url of urls) {
-                        try {
-                            const browseResult = await orchestrator.browseUrl({ url, description: `Browsing ${url}` });
-                            if (browseResult.success && browseResult.content) {
-                                browsedContext += `\n\nContent from ${url}:\n${browseResult.content.slice(0, 1500)}...`;
-                            }
-                        } catch (error) {
-                            console.warn('Failed to browse URL:', url, error);
-                        }
-                    }
-
-                    this.removeChatMessage(browsingId);
-                    const newLoadingId = this.addChatMessage('assistant', '🤔 Analyzing content...', true);
-                    this.removeChatMessage(newLoadingId);
-                }
-
-                // Generate system prompt with function capabilities
-                const systemPrompt = orchestrator.generateSystemPrompt(content);
-
-                // Create context with current page and browsed content
-                const fullContext = `${systemPrompt}
-
-Current user query: "${message}"
-
-${browsedContext ? `Additional context from browsed URLs:${browsedContext}` : ''}
-
-Page content: ${content.text.slice(0, 15000)}...`;
-
-                // Get AI response
-                const aiResponse = await geminiClient.sendMessage(message, fullContext);
-
-                // Extract and execute function calls
-                const functionCalls = orchestrator.extractFunctionCalls(aiResponse);
-                const cleanResponse = orchestrator.removeFunctionCallsFromText(aiResponse);
-
-                // Display initial response if there's any text content
-                if (cleanResponse.trim()) {
-                    this.removeChatMessage(loadingId);
-                    this.addChatMessage('assistant', cleanResponse);
-                } else {
-                    this.removeChatMessage(loadingId);
-                }
-
-                // Execute function calls if any
-                if (functionCalls.length > 0) {
-                    const executingId = this.addChatMessage('assistant', `⚡ Executing ${functionCalls.length} function(s)...`, true);
-
-                    let functionResults = [];
-                    let successCount = 0;
-
-                    for (const functionCall of functionCalls) {
-                        try {
-                            const result = await orchestrator.executeFunctionCall(functionCall);
-                            functionResults.push(result);
-                            if (result.success) successCount++;
-
-                            // Add individual function result message
-                            if (result.success) {
-                                this.addChatMessage('assistant', `✅ ${result.result}`, false, 'normal');
-                            } else {
-                                this.addChatMessage('assistant', `❌ ${functionCall.function} failed: ${result.error}`, false, 'error');
-                            }
-                        } catch (error) {
-                            console.error('Function execution error:', error);
-                            this.addChatMessage('assistant', `❌ Error executing ${functionCall.function}: ${error.message}`, false, 'error');
-                        }
-                    }
-
-                    this.removeChatMessage(executingId);
-
-                    // Add summary message
-                    if (successCount > 0) {
-                        const summaryMsg = `🎯 Completed ${successCount}/${functionCalls.length} function(s) successfully`;
-                        this.addChatMessage('assistant', summaryMsg, false, 'normal');
-                    }
-                }
+                // Start orchestration flow
+                await this.orchestrateResponse(message);
 
             } catch (error) {
-                this.removeChatMessage(loadingId);
                 this.addChatMessage('assistant', `❌ Error: ${error.message}`, false, 'error');
                 console.error('Process message error:', error);
             }
+        }
+
+        async orchestrateResponse(userMessage, continuationContext = null, maxIterations = 3) {
+            const content = utils.extractPageContent();
+            const geminiClient = STATE.geminiClient;
+            const orchestrator = geminiClient.functionOrchestrator;
+
+            // Analyze user intent for better orchestration
+            const userIntent = this.analyzeUserIntent(userMessage);
+
+            let currentIteration = 0;
+            let conversationContext = continuationContext || '';
+            let lastDiscoveryResult = null;
+
+            while (currentIteration < maxIterations) {
+                currentIteration++;
+
+                // Add loading message for this iteration
+                const loadingId = this.addChatMessage('assistant',
+                    currentIteration === 1 ? '🤔 Analyzing your request...' :
+                        `🔄 Planning next steps (${currentIteration}/${maxIterations})...`, true);
+
+                try {
+                    // Check for URLs in the message and browse them first (only on first iteration)
+                    if (currentIteration === 1) {
+                        const urls = orchestrator.extractURLs(userMessage);
+                        if (urls.length > 0) {
+                            this.removeChatMessage(loadingId);
+                            const browsingId = this.addChatMessage('assistant', `🌐 Browsing ${urls.length} URL(s)...`, true);
+
+                            for (const url of urls) {
+                                try {
+                                    const browseResult = await orchestrator.browseUrl({ url, description: `Browsing ${url}` });
+                                    if (browseResult.success && browseResult.content) {
+                                        conversationContext += `\n\nContent from ${url}:\n${browseResult.content.slice(0, 1500)}...`;
+                                    }
+                                } catch (error) {
+                                    console.warn('Failed to browse URL:', url, error);
+                                }
+                            }
+                            this.removeChatMessage(browsingId);
+                        }
+                    }
+
+                    // Build enhanced context for this iteration
+                    const systemPrompt = orchestrator.generateSystemPrompt(content);
+
+                    let iterationContext = `${systemPrompt}
+
+ORCHESTRATION CONTEXT:
+- Current iteration: ${currentIteration}/${maxIterations}
+- User's original request: "${userMessage}"
+- This is ${currentIteration === 1 ? 'the initial analysis' : 'a follow-up to continue the task'}
+
+INTENT ANALYSIS:
+- Detected action: ${userIntent.action}
+- Target: ${userIntent.target || 'unspecified'}
+- Priority: ${userIntent.priority}
+- Suggested workflow: ${userIntent.suggestedWorkflow.join(' → ')}
+
+${conversationContext}
+
+${lastDiscoveryResult ? `
+PREVIOUS DISCOVERY RESULTS:
+${JSON.stringify(lastDiscoveryResult, null, 2)}
+
+Now use these discovered elements to complete the user's request. You should:
+1. Select appropriate elements from the discovery results
+2. Use modifyElement/createElement/removeElement to make the requested changes
+3. Provide clear feedback about what was accomplished
+` : ''}
+
+Page content: ${content.text.slice(0, 8000)}...
+
+SMART TASK COMPLETION:
+- If user wants to "edit/modify/change" something, FIRST discover elements, THEN modify them
+- If you discover elements but don't modify them, you haven't completed the task
+- Always follow through with the actual changes the user requested
+- Be proactive and complete the full workflow automatically`;
+
+                    // Get AI response for this iteration
+                    const aiResponse = await geminiClient.sendMessage(
+                        currentIteration === 1 ? userMessage : "Continue with the task based on previous results",
+                        iterationContext
+                    );
+
+                    // Extract and execute function calls
+                    const functionCalls = orchestrator.extractFunctionCalls(aiResponse);
+                    const cleanResponse = orchestrator.removeFunctionCallsFromText(aiResponse);
+
+                    // Display response
+                    this.removeChatMessage(loadingId);
+                    if (cleanResponse.trim()) {
+                        this.addChatMessage('assistant', cleanResponse);
+                    }
+
+                    // Execute function calls with smart chaining
+                    if (functionCalls.length > 0) {
+                        const executingId = this.addChatMessage('assistant', `⚡ Executing ${functionCalls.length} function(s)...`, true);
+
+                        let hasDiscovery = false;
+                        let hasModification = false;
+                        let discoveryResults = null;
+                        let taskCompleted = false;
+
+                        for (const functionCall of functionCalls) {
+                            try {
+                                const result = await orchestrator.executeFunctionCall(functionCall);
+
+                                // Track what types of operations were performed
+                                if (functionCall.function === 'discoverElements') {
+                                    hasDiscovery = true;
+                                    discoveryResults = result.discovery;
+                                    lastDiscoveryResult = result.discovery;
+                                } else if (['modifyElement', 'createElement', 'removeElement', 'addStyles'].includes(functionCall.function)) {
+                                    hasModification = true;
+                                    if (result.success) taskCompleted = true;
+                                }
+
+                                // Add result feedback
+                                if (result.success) {
+                                    this.addChatMessage('assistant', `✅ ${result.result}`, false, 'normal');
+                                    conversationContext += `\nFunction ${functionCall.function} succeeded: ${result.result}`;
+                                } else {
+                                    this.addChatMessage('assistant', `❌ ${functionCall.function} failed: ${result.error}`, false, 'error');
+                                    if (result.suggestions) {
+                                        this.addChatMessage('assistant', `💡 Suggestions: ${JSON.stringify(result.suggestions)}`, false, 'normal');
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Function execution error:', error);
+                                this.addChatMessage('assistant', `❌ Error executing ${functionCall.function}: ${error.message}`, false, 'error');
+                            }
+                        }
+
+                        this.removeChatMessage(executingId);
+
+                        // Intelligent task completion analysis
+                        const needsContinuation = this.analyzeTaskCompletion(userMessage, hasDiscovery, hasModification, discoveryResults, taskCompleted);
+
+                        if (taskCompleted && !needsContinuation) {
+                            this.addChatMessage('assistant', '🎉 Task completed successfully!', false, 'normal');
+                            break; // Task is done
+                        } else if (needsContinuation && currentIteration < maxIterations) {
+                            this.addChatMessage('assistant', `🔄 Continuing to complete your request...`, false, 'normal');
+                            continue; // Continue to next iteration
+                        } else {
+                            this.addChatMessage('assistant', `🎯 Completed ${functionCalls.length} action(s). Let me know if you need anything else!`, false, 'normal');
+                            break; // Stop here
+                        }
+                    } else {
+                        // No function calls, we're done
+                        break;
+                    }
+
+                } catch (error) {
+                    this.removeChatMessage(loadingId);
+                    this.addChatMessage('assistant', `❌ Iteration ${currentIteration} failed: ${error.message}`, false, 'error');
+                    break;
+                }
+            }
+
+            if (currentIteration >= maxIterations) {
+                this.addChatMessage('assistant', '⏱️ Reached maximum iterations. Task may require manual completion.', false, 'normal');
+            }
+        }
+
+        analyzeTaskCompletion(userMessage, hasDiscovery, hasModification, discoveryResults, taskCompleted) {
+            // Analyze if the task needs continuation based on user intent and current progress
+
+            const modificationKeywords = ['edit', 'change', 'modify', 'update', 'replace', 'add', 'remove', 'delete'];
+            const userWantsModification = modificationKeywords.some(keyword =>
+                userMessage.toLowerCase().includes(keyword)
+            );
+
+            // If user wanted modification but we only discovered elements, continue
+            if (userWantsModification && hasDiscovery && !hasModification) {
+                return true;
+            }
+
+            // If discovery found elements but we haven't used them yet, continue
+            if (hasDiscovery && discoveryResults && discoveryResults.elements.length > 0 && !hasModification) {
+                return true;
+            }
+
+            // If modification failed but we have alternative suggestions, continue
+            if (hasModification && !taskCompleted && discoveryResults) {
+                return true;
+            }
+
+            return false;
+        }
+
+        analyzeUserIntent(userMessage) {
+            // Analyze user intent to provide better context to AI
+            const intent = {
+                action: 'unknown',
+                target: null,
+                priority: 'normal',
+                suggestedWorkflow: []
+            };
+
+            const message = userMessage.toLowerCase();
+
+            // Action detection
+            if (message.includes('edit') || message.includes('change') || message.includes('modify') || message.includes('update')) {
+                intent.action = 'modify';
+                intent.suggestedWorkflow = ['discoverElements', 'modifyElement'];
+            } else if (message.includes('add') || message.includes('create') || message.includes('insert')) {
+                intent.action = 'create';
+                intent.suggestedWorkflow = ['discoverElements', 'createElement'];
+            } else if (message.includes('remove') || message.includes('delete') || message.includes('hide')) {
+                intent.action = 'remove';
+                intent.suggestedWorkflow = ['discoverElements', 'removeElement'];
+            } else if (message.includes('style') || message.includes('color') || message.includes('css')) {
+                intent.action = 'style';
+                intent.suggestedWorkflow = ['discoverElements', 'addStyles'];
+            } else if (message.includes('clean') || message.includes('remove ads')) {
+                intent.action = 'clean';
+                intent.suggestedWorkflow = ['discoverElements', 'removeElement'];
+            } else if (message.includes('analyze') || message.includes('summarize') || message.includes('what')) {
+                intent.action = 'analyze';
+                intent.suggestedWorkflow = ['analyzeContent'];
+            }
+
+            // Target detection
+            if (message.includes('title') || message.includes('heading') || message.includes('h1')) {
+                intent.target = 'title/heading';
+            } else if (message.includes('content') || message.includes('article') || message.includes('main')) {
+                intent.target = 'content';
+            } else if (message.includes('nav') || message.includes('menu')) {
+                intent.target = 'navigation';
+            } else if (message.includes('button') || message.includes('link')) {
+                intent.target = 'interactive';
+            }
+
+            // Priority detection
+            if (message.includes('important') || message.includes('urgent') || message.includes('immediately')) {
+                intent.priority = 'high';
+            }
+
+            return intent;
         }
 
         addChatMessage(sender, content, isTemporary = false, type = 'normal') {

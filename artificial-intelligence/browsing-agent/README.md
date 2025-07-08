@@ -1,8 +1,32 @@
-# AI Browsing Agent (Gemini-Powered)
+# AI Browsing Agent (Gemini-Powered) v4.3.0
 
-A sophisticated userscript that transforms your browsing experience with Google Gemini AI integration. Features a **Windows 11-inspired dark theme design**, real-time content analysis, intelligent DOM manipulation, and seamless authentication.
+A sophisticated userscript that transforms your browsing experience with Google Gemini AI integration. Features **intelligent orchestration**, real-time DOM manipulation, multi-turn function calling, and a **Windows 11-inspired dark theme design**.
 
 ## ✨ Key Features
+
+### 🧠 **Intelligent Orchestration System (NEW in v4.3.0)**
+- **Multi-Turn Function Calling**: Automatically chains operations across multiple AI calls to complete complex tasks
+- **Intent Analysis**: Smart detection of user goals (modify, create, remove, analyze) with automatic workflow planning
+- **Task Completion Intelligence**: Knows when to continue working vs when the task is truly finished
+- **Context Preservation**: Maintains conversation context and previous results across iterations
+- **Progress Tracking**: Real-time feedback showing discovery → analysis → modification workflows
+- **Automatic Follow-Through**: No more stopping at discovery - completes the full requested action
+
+### 🔍 **Advanced DOM Manipulation with Discovery**
+- **Element Discovery System**: Intelligent page structure analysis before manipulation attempts
+- **Smart Fallback Strategies**: Automatic alternative selector generation when targets aren't found
+- **Wikipedia-Aware**: Includes MediaWiki-specific selectors (`.mw-content-text`, `#firstHeading`, etc.)
+- **Robust Error Recovery**: Provides actionable suggestions when elements can't be found
+- **Categorized Discovery**: Find headings, content areas, navigation, and interactive elements
+- **Selector Generation**: Automatic CSS selector creation based on element hierarchy and attributes
+
+### 🎯 **Real-Time Web Manipulation**
+- **Live DOM Control**: AI can directly create, modify, and remove webpage elements in real-time
+- **Intelligent Element Targeting**: Discovers available elements before attempting modifications
+- **Style Manipulation**: Change colors, fonts, sizes, and positioning on-the-fly
+- **Smart Element Creation**: Ask AI to add buttons, divs, text, or any HTML element with proper positioning
+- **Wikipedia Integration**: Successfully handles complex sites like Wikipedia with intelligent selectors
+- **Action History**: Track all DOM changes with detailed logging and feedback
 
 ### 🎨 **Modern UI Design**
 - **Windows 11 Dark Theme**: Sleek interface matching modern Windows design principles
@@ -27,30 +51,13 @@ A sophisticated userscript that transforms your browsing experience with Google 
 - **Smart Model Selection**: Organized dropdown with category grouping
 - **Secure API Key Storage**: Persistent settings with secure local storage
 
-### 🧠 **Intelligent Content Analysis & Function Calling**
+### 🧪 **Intelligent Content Analysis & Function Calling**
 - **Function-Calling System**: AI can automatically execute browser functions through structured responses
 - **Automatic URL Browsing**: AI detects and fetches content from URLs mentioned in conversations
-- **Page Summarization**: Instant analysis of current page content
-- **Context-Aware Responses**: AI understands the website you're viewing
-- **Multimedia Generation**: Create images with Imagen, videos with Veo, audio with TTS
-- **Rich Content Display**: Properly formatted text, embedded images/videos/audio
-- **Embedding Vectors**: Generate text embeddings for semantic search
-- **Real-time Stats**: Live word count, link analysis, and image detection
-- **Smart Recommendations**: Personalized suggestions based on page content
+- **Enhanced Page Summarization**: Comprehensive analysis with key topics, statistics, and structured summaries
+- **Context-Aware Responses**: AI understands the website you're viewing with deep content analysis
 - **Cross-Site Analysis**: Browse and analyze multiple websites in one conversation
-
-### 🛠️ **Advanced DOM Manipulation**
-- **Real-time DOM Control**: AI can directly create, modify, and remove webpage elements
-- **Intelligent Element Creation**: Ask AI to add buttons, divs, text, or any HTML element
-- **Style Manipulation**: Change colors, fonts, sizes, and positioning on-the-fly
-- **Smart Element Targeting**: AI understands page structure to place elements correctly
-- **Ad Blocking**: Removes advertisements and sponsored content
-- **Popup Elimination**: Clears intrusive popups and overlays
-- **Cookie Notice Removal**: Hides GDPR and cookie consent banners
-- **Social Widget Cleanup**: Removes social sharing buttons and widgets
-- **Newsletter Signup Removal**: Eliminates email capture forms
-- **Smart Restore**: One-click restoration of all hidden elements
-- **Action History**: Track all DOM changes with ability to review and undo
+- **Real-time Stats**: Live word count, link analysis, and image detection
 
 ## 🔧 Installation
 
@@ -70,66 +77,104 @@ The script is designed to work seamlessly with AdGuard Desktop, providing AI-pow
 ## 🚀 Usage
 
 ### Getting Started
-1. **Get API Key**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey) to get your free Gemini API key
+1. **Get API Key**: Visit [Google AI Studio](https://aistudio.google.com/app/apikey) to get your free Gemini API key
 2. **Activate Agent**: Look for the sparkle (✨) button in the bottom-right corner of any webpage
 3. **Configure Settings**: Click the floating button → Settings → Enter your API key and select your preferred model
 4. **Start Chatting**: Begin asking questions about any webpage content
 
 ### Interface Overview
-- **Status Panel**: Shows page statistics and AI service connection status
-- **Chat Area**: Interactive conversation with the AI about the current page
-- **Input Field**: Type questions or commands for the AI assistant
+- **Chat Area**: Interactive conversation with intelligent multi-turn function calling
+- **Input Field**: Auto-resizing textarea (like v.chat) with Enter to send, Shift+Enter for new line
+- **Quick Actions**: Summarize, Clean Page, DOM Demo, Settings buttons with descriptive tooltips
+- **Progress Indicators**: Real-time feedback showing orchestration progress and task completion
 
-### Common Commands
+### Enhanced Commands (v4.3.0)
+
+#### Intelligent DOM Manipulation
+- **"Edit the Wikipedia title and add '(Real-time Manipulation)' to it"** - Automatically discovers page structure and modifies titles
+- **"Change the main heading color to blue"** - Finds headings intelligently and applies styling
+- **"Add a green button next to the search box"** - Discovers page layout and positions elements correctly
+- **"Remove the navigation menu"** - Identifies navigation elements and removes them
+- **"Make the article content larger"** - Finds main content areas and adjusts styling
 
 #### Content Analysis
-- **"Summarize this page"** - Get an intelligent summary of the current content
-- **"What are the main points?"** - Extract key information from the page
-- **"Help me understand this"** - Get explanations of complex content
+- **"Summarize this Wikipedia article"** - Get comprehensive summaries with key topics and statistics
+- **"What are the main points about machine learning?"** - Extract structured information from content
+- **"Analyze the page structure"** - Discover available elements for manipulation
 
-#### DOM Manipulation
-- **"Add a red button that says Click me"** - Create custom buttons with specific styling
-- **"Remove all ads from this page"** - Eliminate advertisement elements
-- **"Change the background color to blue"** - Modify page styling
-- **"Hide all images on this page"** - Selectively hide content types
-- **"Add a text box next to the search button"** - Create and position new elements
+#### Advanced Workflows
+- **"Clean up this page and then highlight the main content"** - Multi-step operations completed automatically
+- **"Find all the headings and make them green"** - Discovery followed by batch modifications
+- **"Create a table of contents from the headings"** - Complex DOM manipulation with intelligent structure analysis
 
-#### Page Cleanup
-- **"Clean up this page"** - Remove ads, popups, and distracting elements
-- **"Restore page"** - Bring back any hidden elements
+## 🔧 Enhanced Function Calling System (v4.3.0)
 
-#### URL Browsing
-- **"Summarize https://example.com"** - Automatically browse and analyze external URLs
-- **"Compare this page with https://competitor.com"** - Cross-site content analysis
-- **"What's the latest on https://news-site.com?"** - Real-time web content fetching
+### Orchestration Intelligence
+The AI now features sophisticated orchestration logic that automatically chains function calls to complete complex tasks:
 
-## 🔧 Function Calling System
-
-### How It Works
-The AI can execute browser functions by including structured JSON commands in its responses. This enables seamless integration between conversation and action.
+1. **Intent Analysis**: Automatically detects what the user wants to accomplish
+2. **Workflow Planning**: Determines the optimal sequence of functions to execute
+3. **Multi-Turn Execution**: Continues working across multiple AI responses until task completion
+4. **Progress Tracking**: Monitors discovery, analysis, and modification phases
+5. **Smart Continuation**: Knows when to keep working vs when the task is finished
 
 ### Available Functions
-1. **browseUrl** - Fetch and analyze content from external URLs
-2. **createElement** - Create new HTML elements with styling and positioning
-3. **removeElement** - Remove elements using CSS selectors
-4. **modifyElement** - Modify existing elements (text, styles, attributes)
-5. **addStyles** - Inject custom CSS into the page
-6. **analyzeContent** - Perform deep content analysis
+1. **discoverElements** - Intelligent page structure analysis with categorized results
+2. **browseUrl** - Fetch and analyze content from external URLs
+3. **createElement** - Create new HTML elements with styling and positioning
+4. **removeElement** - Remove elements using CSS selectors with fallback strategies
+5. **modifyElement** - Modify existing elements with intelligent selector fallbacks
+6. **addStyles** - Inject custom CSS into the page
+7. **analyzeContent** - Comprehensive content analysis with topic extraction
 
-### Example Function Call
-When you ask "Add a blue button next to the search box", the AI responds with:
+### Orchestration Example
+**User**: *"Edit the Wikipedia title and add '(Real-time Demo)' to it"*
 
+**Orchestration Flow**:
 ```
-I'll add a blue button next to the search box for you.
+🧠 Intent Analysis: Action=modify, Target=title/heading
+🔍 Iteration 1: Discovering page elements...
+✅ Found title element: #firstHeading "Machine learning"
+🔄 Continuing to complete your request...
+⚡ Iteration 2: Modifying title element...
+✅ Modified title to "Machine learning (Real-time Demo)"
+🎉 Task completed successfully!
+```
 
+### Enhanced Function Call Format
+```json
 [FUNCTION_CALL]
-{"function": "createElement", "element": "button", "text": "Click me", "styles": {"backgroundColor": "blue", "color": "white", "padding": "10px"}, "target": "input[type='search']", "position": "after", "description": "Creating blue button next to search box"}
+{
+  "function": "discoverElements",
+  "focus": "headings",
+  "limit": 10,
+  "description": "Finding page headings for modification"
+}
 [/FUNCTION_CALL]
 
-The button has been added successfully!
+[FUNCTION_CALL]
+{
+  "function": "modifyElement",
+  "selector": "#firstHeading",
+  "text": "Machine learning (Real-time Demo)",
+  "description": "Adding demo text to Wikipedia title"
+}
+[/FUNCTION_CALL]
 ```
 
-The function call is automatically detected and executed, then the AI receives feedback about the result.
+## 🛡️ Robust Error Handling & Recovery
+
+### Intelligent Fallback System
+- **Automatic Selector Alternatives**: When target elements aren't found, generates intelligent fallbacks
+- **Pattern Matching**: If `.mw-notice` fails, tries `[class*="notice"]`, `.notification`, `.alert`
+- **Suggestion Engine**: Provides actionable alternatives when elements can't be located
+- **Graceful Degradation**: Tasks continue with best-effort approaches rather than hard failures
+
+### Smart Continuation Logic
+- **Task Completion Analysis**: Determines if user goals have been met vs need more work
+- **Progress-Based Decisions**: Only continues when it makes sense based on current progress
+- **Iteration Limits**: Prevents infinite loops with intelligent stopping conditions
+- **Context Preservation**: Maintains discovery results and conversation context across attempts
 
 ## 🔒 Authentication & Security
 
@@ -154,122 +199,105 @@ The interface follows Microsoft's Fluent Design principles:
 - **Consistent Colors**: Dark theme with proper contrast ratios
   - Primary Background: `#1a1b1e` (Deep charcoal)
   - Secondary Background: `#27282b` (Lighter charcoal)
-  - Accent Color: `#0078d4` (Windows blue)
+  - Accent Color: `#3f83f8` (Modern blue)
+  - Success Color: `#31c48d` (Green)
   - Text: `#ffffff` (Pure white) with `#a0aec0` (Light gray) for secondary text
 
-- **Smooth Interactions**: Gentle animations and transitions
-- **Rounded Geometry**: Modern 8px and 12px border radius
-- **Backdrop Effects**: Subtle blur effects for depth
+- **Smooth Interactions**: Gentle animations and transitions with cubic-bezier easing
+- **Rounded Geometry**: Modern 8px, 10px, and 12px border radius
+- **Backdrop Effects**: Subtle blur effects for depth and modern layering
 
-### Visual Hierarchy
-- **Typography**: Uses system fonts (Segoe UI Variable on Windows)
-- **Spacing**: Consistent 8px grid system
-- **Shadows**: Soft drop shadows for elevation
-- **Icons**: Emoji-based icons for universal recognition
+### Enhanced UX (v4.3.0)
+- **Auto-Resizing Input**: Textarea grows/shrinks like v.chat (46px-200px)
+- **Keyboard Shortcuts**: Enter to send, Shift+Enter for new line
+- **Progress Indicators**: Clear feedback during multi-step operations
+- **Descriptive Tooltips**: Helpful explanations for all quick action buttons
+- **Visual Feedback**: Different colors for success/error/progress states
 
-## 🛠️ Technical Details
+## 🛠️ Technical Architecture
 
-### Architecture
-- **Modular Design**: Separate classes for UI, Gemini client, and utilities
-- **Event-Driven**: Reactive interface responding to user interactions
-- **Error Handling**: Comprehensive error management with user-friendly messages
-- **Performance Optimized**: Minimal resource usage and fast response times
-
-### Gemini Integration
-```javascript
-class GeminiClient {
-    // Real web API integration
-    // Session management
-    // Token extraction
-    // Response parsing
-}
-```
-
-### DOM Manipulation
+### Enhanced Orchestration System
 ```javascript
 class UIManager {
-    // Element hiding/showing
-    // Style preservation
-    // Restore functionality
-    // Visual feedback
+    async orchestrateResponse(userMessage, maxIterations = 3) {
+        // Intent analysis and workflow planning
+        // Multi-turn function execution
+        // Progress tracking and smart continuation
+        // Task completion validation
+    }
+    
+    analyzeUserIntent(userMessage) {
+        // Action detection (modify, create, remove, etc.)
+        // Target identification (title, content, navigation)
+        // Workflow suggestion generation
+    }
 }
 ```
+
+### Advanced DOM Manipulation
+```javascript
+class FunctionOrchestrator {
+    async discoverElements(params) {
+        // Intelligent page structure analysis
+        // Categorized element discovery
+        // Robust selector generation
+    }
+    
+    generateFallbackSelectors(originalSelector) {
+        // Smart fallback generation
+        // Pattern-based alternatives
+        // MediaWiki-specific patterns
+    }
+}
+```
+
+### Smart Error Recovery
+```javascript
+async suggestAlternativeSelectors(failedSelector) {
+    // Analyze page structure for alternatives
+    // Context-aware suggestions
+    // Actionable recommendations
+}
+```
+
+## 📈 Version History
+
+### v4.3.0 (Latest) - Intelligent Orchestration
+- **Multi-Turn Function Calling**: Automatic task completion across multiple AI iterations
+- **Intent Analysis System**: Smart detection of user goals and workflow planning
+- **Enhanced DOM Discovery**: Robust element discovery with fallback strategies
+- **Task Completion Intelligence**: Knows when to continue vs when tasks are finished
+- **Progress Tracking**: Real-time feedback during complex operations
+- **Improved Error Recovery**: Actionable suggestions when operations fail
+
+### v4.2.0 - DOM Manipulation Intelligence
+- **Element Discovery System**: Intelligent page structure analysis before manipulation
+- **Smart Fallback Strategies**: Automatic alternative selector generation
+- **Enhanced Error Handling**: Better feedback and recovery options
+- **Wikipedia Integration**: MediaWiki-specific selector support
+
+### v4.1.0 - Core Functionality
+- **Function Calling System**: Structured AI function execution
+- **DOM Manipulation**: Real-time webpage modification capabilities
+- **Content Analysis**: Enhanced page summarization and analysis
+- **Temperature Optimization**: Dynamic temperature for deterministic function calling
 
 ## 🔄 Updates & Maintenance
 
 ### Auto-Updates
-The userscript automatically checks for updates from the GitHub repository. Manual updates can be triggered through your userscript manager.
+The userscript automatically updates through your userscript manager when new versions are released.
 
-### Version History
-- **v4.0.0**: 🚀 Complete orchestration overhaul - AI now has function-calling capabilities, automatic URL browsing, intelligent action execution, and seamless integration with browser functions
-- **v3.3.0**: 🛠️ Major DOM manipulation overhaul - AI can now directly create, modify, and remove webpage elements in real-time with intelligent targeting
-- **v3.2.3**: 🔧 Fixed API key URL, enhanced Send button styling, improved model selection with visual feedback and proper dark theme
-- **v3.2.2**: 🎨 Major UI overhaul - improved spacing, custom scrollbars like v.recipes, better typography, enhanced animations
-- **v3.2.1**: 🔄 Updated to Gemma 3 models (deprecated Gemma 2), includes 3n E2B/E4B and 3 series variants
-- **v3.2.0**: 🚀 Comprehensive AI model ecosystem (25+ models), Imagen/Veo support, multimedia handling, enhanced response formatting
-- **v3.1.0**: 🆕 Complete model support (18+ models), official API integration, organized model categories
-- **v3.0.0**: 🎨 Windows 11 design overhaul, authentication system, bottom-right positioning
-- **v2.1.0**: Enhanced DOM manipulation features, cleanup improvements 
-- **v2.0.0**: Chat interface implementation, real-time messaging
-- **v1.0.0**: Initial release with basic AI integration
+### Manual Updates
+Check the [GitHub repository](https://github.com/galpt/adguard-userscripts) for the latest version and changelog.
 
-### Semantic Versioning
-- **Major** (X.0.0): Breaking changes that require user action
-- **Minor** (0.X.0): New features and improvements (backward compatible)
-- **Patch** (0.0.X): Bug fixes and small improvements
+## 🤝 Contributing
 
-## 🐛 Troubleshooting
+Found a bug or have a feature request? Please open an issue on the [GitHub repository](https://github.com/galpt/adguard-userscripts/issues).
 
-### Common Issues
+## 📜 License
 
-**AI Service Unavailable**
-- Verify your API key is correctly entered in Settings
-- Check your internet connection
-- Try testing the API key using the "Test API" button
-- Ensure you haven't exceeded your API quota
-
-**Authentication Errors**
-- Double-check your API key from Google AI Studio
-- Make sure the API key has proper permissions
-- Try generating a new API key if issues persist
-- Check if the selected model is available in your region
-
-**UI Not Appearing**
-- Check if other userscripts are conflicting
-- Ensure the script is enabled in your userscript manager
-- Try disabling ad blockers temporarily
-
-**Performance Issues**
-- Close unnecessary browser tabs
-- Check available system memory
-- Update your userscript manager
-
-### Debug Mode
-Enable debug logging by setting `CONFIG.debug = true` in the script for detailed console output.
-
-## 📞 Support
-
-### Getting Help
-- **Issues**: Report bugs on [GitHub Issues](https://github.com/galpt/adguard-userscripts/issues)
-- **Discussions**: Community support and feature requests
-- **Updates**: Follow the repository for the latest improvements
-
-### Contributing
-Contributions are welcome! Please feel free to submit pull requests or suggest improvements.
-
-## ⚖️ License
-
-This project is open source and available under standard open source licenses. Please use responsibly and in accordance with Google's Terms of Service.
-
-## 🙏 Acknowledgments
-
-- **Google Gemini**: For providing the AI capabilities
-- **HanaokaYuzu/Gemini-API**: Inspiration for authentication approach
-- **Microsoft Design**: Windows 11 design principles and Fluent Design
-- **Community**: Feedback and feature suggestions
+This project is licensed under the MIT License - see the repository for details.
 
 ---
 
-**Made with ❤️ for the browsing community**
-
-*Transform your web experience with intelligent AI assistance* 
+**Transform your browsing experience with AI-powered intelligence and real-time webpage manipulation!** 🚀✨ 
