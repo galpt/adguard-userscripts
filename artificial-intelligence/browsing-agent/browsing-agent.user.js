@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI Browsing Agent (Gemini-Powered)
 // @namespace    https://github.com/galpt/adguard-userscripts
-// @version      4.0.0
+// @version      4.1.0
 // @description  Intelligent browsing assistant powered by Google Gemini API with function-calling, URL browsing, real-time DOM manipulation, and advanced content analysis
 // @author       galpt
 // @match        *://*/*
@@ -21,7 +21,7 @@
 
     // Configuration
     const CONFIG = {
-        version: '4.0.0',
+        version: '4.1.0',
         apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
         defaultModel: 'gemini-2.5-flash',
         models: {
@@ -92,6 +92,41 @@
     const utils = {
         log: (...args) => {
             if (CONFIG.debug) console.log('[AI Browsing Agent]', ...args);
+        },
+
+        // Safe HTML setter to handle TrustedHTML requirements
+        safeSetHTML: (element, html) => {
+            try {
+                // For userscripts, we often need to bypass TrustedHTML restrictions
+                // Try direct innerHTML assignment first
+                element.innerHTML = html;
+            } catch (error) {
+                console.warn('Direct innerHTML failed, trying TrustedHTML policy:', error);
+                try {
+                    // Try to create a TrustedHTML policy if available
+                    if (window.trustedTypes && window.trustedTypes.createPolicy) {
+                        if (!window.aiAgentHTMLPolicy) {
+                            window.aiAgentHTMLPolicy = window.trustedTypes.createPolicy('ai-agent-html', {
+                                createHTML: (string) => string
+                            });
+                        }
+                        element.innerHTML = window.aiAgentHTMLPolicy.createHTML(html);
+                    } else {
+                        // Last resort - create elements manually
+                        console.warn('Creating DOM elements manually due to security restrictions');
+                        const tempContainer = document.createElement('div');
+                        tempContainer.innerHTML = html;
+                        element.innerHTML = '';
+                        while (tempContainer.firstChild) {
+                            element.appendChild(tempContainer.firstChild);
+                        }
+                    }
+                } catch (secondError) {
+                    console.error('All HTML insertion methods failed:', secondError);
+                    // Only fall back to textContent as absolute last resort
+                    element.textContent = 'Failed to load interface. Please refresh the page.';
+                }
+            }
         },
 
         extractPageContent() {
@@ -278,7 +313,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
 
                     return {
                         success: true,
-                        result: `Successfully browsed ${params.url}. Content: ${content.slice(0, 2000)}...`,
+                        result: `Successfully browsed ${params.url}. Content: ${content.slice(0, 8000)}...`,
                         content: content,
                         title: this.extractTitleFromHTML(response.responseText)
                     };
@@ -296,7 +331,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
         extractTextFromHTML(html) {
             // Create a temporary DOM element to parse HTML
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
+            utils.safeSetHTML(tempDiv, html);
 
             // Remove script and style elements
             const scripts = tempDiv.querySelectorAll('script, style, nav, header, footer, aside');
@@ -314,7 +349,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
             const element = document.createElement(params.element || 'div');
 
             if (params.text) element.textContent = params.text;
-            if (params.innerHTML) element.innerHTML = params.innerHTML;
+            if (params.innerHTML) utils.safeSetHTML(element, params.innerHTML);
             if (params.id) element.id = params.id;
             if (params.className) element.className = params.className;
 
@@ -424,7 +459,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
 
             elements.forEach(element => {
                 if (params.text !== undefined) element.textContent = params.text;
-                if (params.innerHTML !== undefined) element.innerHTML = params.innerHTML;
+                if (params.innerHTML !== undefined) utils.safeSetHTML(element, params.innerHTML);
 
                 if (params.attributes) {
                     Object.entries(params.attributes).forEach(([key, value]) => {
@@ -481,26 +516,60 @@ Remember: You are not just a text assistant - you are an active browser agent th
 
         async analyzeContent(params) {
             const content = utils.extractPageContent();
-            const focus = params.focus || 'general';
+            const focus = params.focus || 'main content';
 
-            let analysis = {
-                title: content.title,
-                url: content.url,
-                wordCount: content.text.split(' ').length,
-                linkCount: content.links.length,
-                imageCount: content.images.length,
-                focus: focus
-            };
+            // Extract key information for analysis
+            const textLength = content.text.length;
+            const words = content.text.split(/\s+/).filter(word => word.length > 0);
+            const wordCount = words.length;
 
-            if (focus === 'main content') {
-                // Extract main content areas
-                const mainElements = document.querySelectorAll('main, article, .content, .post, .entry');
-                analysis.mainContentElements = mainElements.length;
+            // Generate actual content summary
+            let summary = '';
 
-                if (mainElements.length > 0) {
-                    const mainText = Array.from(mainElements).map(el => el.textContent).join(' ');
-                    analysis.mainContentWordCount = mainText.split(' ').length;
+            if (textLength > 100) {
+                // Extract sentences and find the most relevant ones
+                const sentences = content.text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+                const firstFewSentences = sentences.slice(0, 3).join('. ').trim();
+
+                // Create structured analysis
+                summary = `**Page Summary:**\n\n`;
+                summary += `**Title:** ${content.title}\n\n`;
+                summary += `**Main Content:** ${firstFewSentences}${firstFewSentences.endsWith('.') ? '' : '.'}\n\n`;
+                summary += `**Key Statistics:**\n`;
+                summary += `- Word count: ${wordCount.toLocaleString()} words\n`;
+                summary += `- Links found: ${content.links.length}\n`;
+                summary += `- Images found: ${content.images.length}\n\n`;
+
+                // Extract some key topics based on frequent words
+                const commonWords = words
+                    .filter(word => word.length > 4)
+                    .filter(word => !/^(this|that|with|from|they|them|have|been|will|were|would|could|should|there|their|these|those)$/i.test(word))
+                    .reduce((acc, word) => {
+                        const normalized = word.toLowerCase().replace(/[^a-z]/g, '');
+                        acc[normalized] = (acc[normalized] || 0) + 1;
+                        return acc;
+                    }, {});
+
+                const topWords = Object.entries(commonWords)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 5)
+                    .map(([word]) => word);
+
+                if (topWords.length > 0) {
+                    summary += `**Key Topics:** ${topWords.join(', ')}\n\n`;
                 }
+
+                // Add specific focus analysis
+                if (focus === 'main content') {
+                    const mainElements = document.querySelectorAll('main, article, .content, .post, .entry');
+                    if (mainElements.length > 0) {
+                        summary += `**Main Content Areas:** Found ${mainElements.length} primary content section(s)\n\n`;
+                    }
+                }
+
+                summary += `*Analysis completed at ${new Date().toLocaleTimeString()}*`;
+            } else {
+                summary = `**Brief Page Analysis:**\n\nThis appears to be a short page with limited content (${wordCount} words). The page title is "${content.title}" and contains ${content.links.length} links and ${content.images.length} images.`;
             }
 
             this.actionHistory.push({
@@ -512,8 +581,15 @@ Remember: You are not just a text assistant - you are an active browser agent th
 
             return {
                 success: true,
-                result: params.description || `Analyzed page content with focus on: ${focus}`,
-                analysis: analysis
+                result: summary,
+                analysis: {
+                    title: content.title,
+                    url: content.url,
+                    wordCount: wordCount,
+                    linkCount: content.links.length,
+                    imageCount: content.images.length,
+                    focus: focus
+                }
             };
         }
 
@@ -585,7 +661,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
             const element = document.createElement(action.element || 'div');
 
             if (action.text) element.textContent = action.text;
-            if (action.innerHTML) element.innerHTML = action.innerHTML;
+            if (action.innerHTML) utils.safeSetHTML(element, action.innerHTML);
             if (action.id) element.id = action.id;
             if (action.className) element.className = action.className;
 
@@ -695,7 +771,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
 
             elements.forEach(element => {
                 if (action.text !== undefined) element.textContent = action.text;
-                if (action.innerHTML !== undefined) element.innerHTML = action.innerHTML;
+                if (action.innerHTML !== undefined) utils.safeSetHTML(element, action.innerHTML);
 
                 if (action.attributes) {
                     Object.entries(action.attributes).forEach(([key, value]) => {
@@ -858,6 +934,20 @@ Remember: You are not just a text assistant - you are an active browser agent th
         }
 
         buildRequestData(modelInfo, prompt) {
+            // Use low temperature for function calling and instruction following
+            // This makes the AI more deterministic and better at following exact instructions
+            const isInstructionFollowing = prompt.includes('[FUNCTION_CALL]') ||
+                prompt.includes('executeActions') ||
+                prompt.includes('browseUrl') ||
+                prompt.includes('createElement') ||
+                prompt.includes('modifyElement') ||
+                prompt.includes('removeElement') ||
+                prompt.includes('addStyles') ||
+                prompt.includes('analyzeContent') ||
+                prompt.includes('You have access to the following browser functions:');
+
+            const temperature = isInstructionFollowing ? 0.1 : 0.3;
+
             switch (modelInfo.type) {
                 case 'text':
                 case 'text-image':
@@ -870,10 +960,10 @@ Remember: You are not just a text assistant - you are an active browser agent th
                             }]
                         }],
                         generationConfig: {
-                            temperature: 0.7,
+                            temperature: temperature,
                             topK: 40,
                             topP: 0.8,
-                            maxOutputTokens: 2048
+                            maxOutputTokens: 8000 // Increased for more comprehensive responses
                         }
                     };
 
@@ -881,7 +971,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
                     return {
                         prompt: prompt,
                         generationConfig: {
-                            temperature: 0.7,
+                            temperature: temperature,
                             seed: Math.floor(Math.random() * 1000000)
                         }
                     };
@@ -890,7 +980,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
                     return {
                         prompt: prompt,
                         generationConfig: {
-                            temperature: 0.7
+                            temperature: temperature
                         }
                     };
 
@@ -912,37 +1002,55 @@ Remember: You are not just a text assistant - you are an active browser agent th
         }
 
         parseResponse(responseText, modelInfo) {
-            const data = JSON.parse(responseText);
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                throw new Error(`Failed to parse JSON response: ${parseError.message}`);
+            }
 
             switch (modelInfo.type) {
                 case 'text':
                 case 'text-image':
                 case 'audio':
                 case 'tts':
-                    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                        const parts = data.candidates[0].content.parts;
-                        let result = '';
+                    // Enhanced response validation
+                    if (!data.candidates || !Array.isArray(data.candidates) || data.candidates.length === 0) {
+                        console.error('Invalid API response structure:', data);
+                        throw new Error('No candidates found in API response');
+                    }
 
-                        for (const part of parts) {
-                            if (part.text) {
-                                result += part.text;
-                            } else if (part.inlineData) {
-                                // Handle inline data (images, audio)
-                                const mimeType = part.inlineData.mimeType;
-                                const data = part.inlineData.data;
+                    const candidate = data.candidates[0];
+                    if (!candidate.content) {
+                        console.error('No content in candidate:', candidate);
+                        throw new Error('No content found in API response');
+                    }
 
-                                if (mimeType.startsWith('image/')) {
-                                    result += `\n\n🖼️ **Generated Image:**\n![Generated Image](data:${mimeType};base64,${data})\n\n`;
-                                } else if (mimeType.startsWith('audio/')) {
-                                    result += `\n\n🎵 **Generated Audio:**\n<audio controls><source src="data:${mimeType};base64,${data}" type="${mimeType}"></audio>\n\n`;
-                                }
+                    const parts = candidate.content.parts;
+                    if (!parts || !Array.isArray(parts)) {
+                        console.error('Parts is not an array:', parts);
+                        throw new Error('Invalid parts structure in API response');
+                    }
+
+                    let result = '';
+                    for (const part of parts) {
+                        if (part.text) {
+                            result += part.text;
+                        } else if (part.inlineData) {
+                            // Handle inline data (images, audio)
+                            const mimeType = part.inlineData.mimeType;
+                            const dataContent = part.inlineData.data;
+
+                            if (mimeType.startsWith('image/')) {
+                                result += `\n\n🖼️ **Generated Image:**\n![Generated Image](data:${mimeType};base64,${dataContent})\n\n`;
+                            } else if (mimeType.startsWith('audio/')) {
+                                result += `\n\n🎵 **Generated Audio:**\n<audio controls><source src="data:${mimeType};base64,${dataContent}" type="${mimeType}"></audio>\n\n`;
                             }
                         }
-
-                        return result || 'Response generated successfully but no text content received.';
-                    } else {
-                        throw new Error('No response content received');
                     }
+
+                    return result || 'Response generated successfully but no text content received.';
+
 
                 case 'image':
                     if (data.generatedImages && data.generatedImages.length > 0) {
@@ -1002,7 +1110,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
         createFloatingButton() {
             this.floatingBtn = document.createElement('button');
             this.floatingBtn.id = 'ai-browsing-agent-btn';
-            this.floatingBtn.innerHTML = '✨';
+            this.floatingBtn.textContent = '✨';
             this.floatingBtn.title = 'AI Browsing Agent';
 
             this.floatingBtn.style.cssText = `
@@ -1084,171 +1192,44 @@ Remember: You are not just a text assistant - you are an active browser agent th
                 flex-direction: column;
             `;
 
+            // Add CSS first
+            const style = document.createElement('style');
+            style.textContent = `
+                .ai-agent-scrollable::-webkit-scrollbar { width: 8px; }
+                .ai-agent-scrollable::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
+                .ai-agent-scrollable::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #3f83f8 0%, #1a56db 100%); border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1); }
+                .ai-agent-scrollable::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%); }
+                .ai-agent-scrollable { scrollbar-width: thin; scrollbar-color: #3f83f8 rgba(255, 255, 255, 0.05); }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+            `;
+            document.head.appendChild(style);
+
+            // Build HTML content
             modalContent.innerHTML = `
-                <style>
-                    /* Custom scrollbar like v.recipes DNS page */
-                    .ai-agent-scrollable::-webkit-scrollbar {
-                        width: 8px;
-                    }
-                    .ai-agent-scrollable::-webkit-scrollbar-track {
-                        background: rgba(255, 255, 255, 0.05);
-                        border-radius: 4px;
-                    }
-                    .ai-agent-scrollable::-webkit-scrollbar-thumb {
-                        background: linear-gradient(180deg, #3f83f8 0%, #1a56db 100%);
-                        border-radius: 4px;
-                        border: 1px solid rgba(255, 255, 255, 0.1);
-                    }
-                    .ai-agent-scrollable::-webkit-scrollbar-thumb:hover {
-                        background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-                    }
-                    .ai-agent-scrollable {
-                        scrollbar-width: thin;
-                        scrollbar-color: #3f83f8 rgba(255, 255, 255, 0.05);
-                    }
-                    @keyframes fadeIn {
-                        from { opacity: 0; transform: translateY(-10px); }
-                        to { opacity: 1; transform: translateY(0); }
-                    }
-                </style>
-                
-                <!-- Header -->
                 <div style="padding: 28px 32px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); flex-shrink: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <h2 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 600; letter-spacing: -0.5px;">AI Browsing Agent</h2>
                             <p style="margin: 6px 0 0; color: #a0aec0; font-size: 14px; opacity: 0.8;">Powered by Gemini API</p>
                         </div>
-                        <button id="ai-agent-close" style="
-                            background: rgba(255, 255, 255, 0.05);
-                            border: 1px solid rgba(255, 255, 255, 0.1);
-                            color: #a0aec0;
-                            font-size: 20px;
-                            cursor: pointer;
-                            padding: 8px;
-                            border-radius: 8px;
-                            transition: all 0.2s ease;
-                            width: 36px;
-                            height: 36px;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">×</button>
+                        <button id="ai-agent-close" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #a0aec0; font-size: 20px; cursor: pointer; padding: 8px; border-radius: 8px; transition: all 0.2s ease; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">&times;</button>
                     </div>
                 </div>
                 
-                <!-- Chat Area -->
-                <div style="
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    overflow: hidden;
-                    padding: 24px 32px;
-                    gap: 20px;
-                ">
-                    <div id="ai-agent-chat" style="
-                        flex: 1;
-                        min-height: 240px;
-                        overflow-y: auto;
-                        padding-right: 8px;
-                        margin-right: -8px;
-                    " class="ai-agent-scrollable"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 24px 32px; gap: 20px;">
+                    <div id="ai-agent-chat" style="flex: 1; min-height: 240px; overflow-y: auto; padding-right: 8px; margin-right: -8px;" class="ai-agent-scrollable"></div>
                     
-                    <!-- Input Section -->
-                    <div style="
-                        flex-shrink: 0;
-                        border-top: 1px solid rgba(255, 255, 255, 0.08);
-                        padding-top: 20px;
-                        margin-top: 8px;
-                    ">
+                    <div style="flex-shrink: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; margin-top: 8px;">
                         <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                            <input type="text" id="ai-agent-input" placeholder="Ask me anything about this page..." style="
-                                flex: 1;
-                                padding: 14px 16px;
-                                background: rgba(255, 255, 255, 0.04);
-                                border: 1px solid rgba(255, 255, 255, 0.12);
-                                border-radius: 12px;
-                                color: #ffffff;
-                                font-size: 14px;
-                                outline: none;
-                                transition: all 0.2s ease;
-                                font-family: inherit;
-                            ">
-                            <button id="ai-agent-send" style="
-                                padding: 14px 24px;
-                                background: linear-gradient(135deg, #3f83f8 0%, #2563eb 50%, #1d4ed8 100%);
-                                border: none;
-                                border-radius: 12px;
-                                color: white;
-                                cursor: pointer;
-                                font-size: 14px;
-                                font-weight: 600;
-                                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                                box-shadow: 0 4px 16px rgba(63, 131, 248, 0.3), 0 2px 8px rgba(63, 131, 248, 0.1);
-                                border: 1px solid rgba(255, 255, 255, 0.1);
-                                text-transform: uppercase;
-                                letter-spacing: 0.5px;
-                                min-width: 80px;
-                            ">Send</button>
+                            <textarea id="ai-agent-input" placeholder="Ask me anything about this page..." style="flex: 1; padding: 14px 16px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; color: #ffffff; font-size: 14px; outline: none; transition: all 0.2s ease; font-family: inherit; resize: none; min-height: 46px; max-height: 200px; overflow-y: hidden; line-height: 1.4;"></textarea>
+                            <button id="ai-agent-send" style="padding: 14px 24px; background: linear-gradient(135deg, #3f83f8 0%, #2563eb 50%, #1d4ed8 100%); border: none; border-radius: 12px; color: white; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 16px rgba(63, 131, 248, 0.3), 0 2px 8px rgba(63, 131, 248, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); text-transform: uppercase; letter-spacing: 0.5px; min-width: 80px;">Send</button>
                         </div>
                         
                         <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                            <button class="quick-action" data-action="summarize" style="
-                                padding: 8px 16px;
-                                background: rgba(63, 131, 248, 0.08);
-                                border: 1px solid rgba(63, 131, 248, 0.2);
-                                border-radius: 8px;
-                                color: #3f83f8;
-                                cursor: pointer;
-                                font-size: 13px;
-                                font-weight: 500;
-                                transition: all 0.2s ease;
-                                display: flex;
-                                align-items: center;
-                                gap: 6px;
-                            ">📋 Summarize</button>
-                            <button class="quick-action" data-action="clean" style="
-                                padding: 8px 16px;
-                                background: rgba(49, 196, 141, 0.08);
-                                border: 1px solid rgba(49, 196, 141, 0.2);
-                                border-radius: 8px;
-                                color: #31c48d;
-                                cursor: pointer;
-                                font-size: 13px;
-                                font-weight: 500;
-                                transition: all 0.2s ease;
-                                display: flex;
-                                align-items: center;
-                                gap: 6px;
-                            ">🧹 Clean Page</button>
-                            <button class="quick-action" data-action="dom-demo" style="
-                                padding: 8px 16px;
-                                background: rgba(168, 85, 247, 0.08);
-                                border: 1px solid rgba(168, 85, 247, 0.2);
-                                border-radius: 8px;
-                                color: #a855f7;
-                                cursor: pointer;
-                                font-size: 13px;
-                                font-weight: 500;
-                                transition: all 0.2s ease;
-                                display: flex;
-                                align-items: center;
-                                gap: 6px;
-                            ">🔧 DOM Demo</button>
-                            <button class="quick-action" data-action="settings" style="
-                                padding: 8px 16px;
-                                background: rgba(246, 173, 85, 0.08);
-                                border: 1px solid rgba(246, 173, 85, 0.2);
-                                border-radius: 8px;
-                                color: #f6ad55;
-                                cursor: pointer;
-                                font-size: 13px;
-                                font-weight: 500;
-                                transition: all 0.2s ease;
-                                display: flex;
-                                align-items: center;
-                                gap: 6px;
-                            ">⚙️ Settings</button>
+                            <button class="quick-action" data-action="summarize" title="Analyze and summarize the main content, key points, and topics of this page" style="padding: 8px 16px; background: rgba(63, 131, 248, 0.08); border: 1px solid rgba(63, 131, 248, 0.2); border-radius: 8px; color: #3f83f8; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">📋 Summarize</button>
+                            <button class="quick-action" data-action="clean" title="Remove ads, popups, and distracting elements to clean up the page layout" style="padding: 8px 16px; background: rgba(49, 196, 141, 0.08); border: 1px solid rgba(49, 196, 141, 0.2); border-radius: 8px; color: #31c48d; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">🧹 Clean Page</button>
+                            <button class="quick-action" data-action="dom-demo" title="Demonstrate AI's ability to modify web pages by adding a sample button" style="padding: 8px 16px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px; color: #a855f7; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">🔧 DOM Demo</button>
+                            <button class="quick-action" data-action="settings" title="Configure your Gemini API key, model selection, and other preferences" style="padding: 8px 16px; background: rgba(246, 173, 85, 0.08); border: 1px solid rgba(246, 173, 85, 0.2); border-radius: 8px; color: #f6ad55; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;">⚙️ Settings</button>
                         </div>
                     </div>
                 </div>
@@ -1260,6 +1241,26 @@ Remember: You are not just a text assistant - you are an active browser agent th
             // Add event listeners
             this.setupModalEvents();
             this.showWelcomeMessage();
+        }
+
+        // Auto-resize textarea function (like v.chat)
+        resizeTextarea() {
+            const textarea = this.modal.querySelector('#ai-agent-input');
+            if (!textarea) return;
+
+            // Reset height to auto to get correct scrollHeight
+            textarea.style.height = 'auto';
+            let newHeight = textarea.scrollHeight;
+
+            // Apply max/min height constraints
+            if (newHeight > 200) {
+                newHeight = 200;
+                textarea.style.overflowY = 'auto';
+            } else {
+                textarea.style.overflowY = 'hidden';
+            }
+
+            textarea.style.height = `${Math.max(46, newHeight)}px`;
         }
 
         setupModalEvents() {
@@ -1276,6 +1277,24 @@ Remember: You are not just a text assistant - you are an active browser agent th
                 closeBtn.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                 closeBtn.style.color = '#a0aec0';
             });
+
+            // Auto-resize textarea input
+            const textarea = this.modal.querySelector('#ai-agent-input');
+            if (textarea) {
+                textarea.addEventListener('input', () => {
+                    this.resizeTextarea();
+                });
+
+                textarea.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                // Initial resize
+                this.resizeTextarea();
+            }
 
             // Click outside to close
             this.modal.addEventListener('click', (e) => {
@@ -1409,7 +1428,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
                 `;
             }
 
-            chat.innerHTML = `
+            utils.safeSetHTML(chat, `
                 <div style="color: #a0aec0; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
                     <div style="margin-bottom: 16px;">
                         <h3 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 600;">Welcome to AI Browsing Agent!</h3>
@@ -1422,7 +1441,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
                         I can help you analyze, summarize, and interact with web content. Try asking me about this page or use the quick actions below.
                     </div>
                 </div>
-            `;
+            `);
         }
 
         async handleQuickAction(action) {
@@ -1448,6 +1467,7 @@ Remember: You are not just a text assistant - you are an active browser agent th
             if (!message) return;
 
             input.value = '';
+            this.resizeTextarea(); // Reset textarea size after clearing
             await this.processMessage(message);
         }
 
@@ -1499,7 +1519,7 @@ Current user query: "${message}"
 
 ${browsedContext ? `Additional context from browsed URLs:${browsedContext}` : ''}
 
-Page content: ${content.text.slice(0, 2000)}...`;
+Page content: ${content.text.slice(0, 15000)}...`;
 
                 // Get AI response
                 const aiResponse = await geminiClient.sendMessage(message, fullContext);
@@ -1582,7 +1602,7 @@ Page content: ${content.text.slice(0, 2000)}...`;
                 overflow-wrap: break-word;
             `;
 
-            messageDiv.innerHTML = this.formatMessage(content);
+            utils.safeSetHTML(messageDiv, this.formatMessage(content));
             chat.appendChild(messageDiv);
 
             // Trigger animation
@@ -1706,25 +1726,7 @@ Page content: ${content.text.slice(0, 2000)}...`;
                             font-family: inherit;
                             max-height: 200px;
                         ">
-                        <style>
-                            #model-select option {
-                                background: #27282b !important;
-                                color: #ffffff !important;
-                                padding: 8px !important;
-                            }
-                            #model-select optgroup {
-                                background: #1a1b1e !important;
-                                color: #3f83f8 !important;
-                                font-weight: 600 !important;
-                                padding: 4px 8px !important;
-                            }
-                            #model-select:focus {
-                                border-color: #3f83f8 !important;
-                                box-shadow: 0 0 0 3px rgba(63, 131, 248, 0.1) !important;
-                                background: rgba(63, 131, 248, 0.05) !important;
-                            }
-                        </style>
-                            ${this.generateModelOptions(geminiClient.selectedModel)}
+                            ${this.generateModelOptions(geminiClient.model)}
                         </select>
                         <div style="font-size: 12px; color: #a0aec0; margin-top: 6px; line-height: 1.4;">
                             Choose the model that best fits your use case and budget
@@ -1760,7 +1762,32 @@ Page content: ${content.text.slice(0, 2000)}...`;
                 </div>
             `;
 
-            chat.innerHTML = settingsHtml;
+            // Add dropdown styles to document head
+            if (!document.querySelector('#ai-agent-dropdown-styles')) {
+                const style = document.createElement('style');
+                style.id = 'ai-agent-dropdown-styles';
+                style.textContent = `
+                    #model-select option {
+                        background: #27282b !important;
+                        color: #ffffff !important;
+                        padding: 8px !important;
+                    }
+                    #model-select optgroup {
+                        background: #1a1b1e !important;
+                        color: #3f83f8 !important;
+                        font-weight: 600 !important;
+                        padding: 4px 8px !important;
+                    }
+                    #model-select:focus {
+                        border-color: #3f83f8 !important;
+                        box-shadow: 0 0 0 3px rgba(63, 131, 248, 0.1) !important;
+                        background: rgba(63, 131, 248, 0.05) !important;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            utils.safeSetHTML(chat, settingsHtml);
             this.setupSettingsEvents();
         }
 
@@ -1778,9 +1805,16 @@ Page content: ${content.text.slice(0, 2000)}...`;
             };
 
             // Group models by category
-            Object.entries(CONFIG.models).forEach(([value, model]) => {
+            Object.entries(CONFIG.models).forEach(([modelKey, model]) => {
                 const category = model.category || 'Primary';
-                categories[category].push({ value, ...model });
+                categories[category].push({
+                    value: modelKey,
+                    name: model.name,
+                    description: model.description,
+                    category: model.category,
+                    type: model.type,
+                    endpoint: model.endpoint
+                });
             });
 
             let optionsHtml = '';
@@ -1821,7 +1855,7 @@ Page content: ${content.text.slice(0, 2000)}...`;
                     modelSelect.parentNode.insertBefore(modelInfoDiv, modelSelect.nextSibling);
                 }
 
-                modelInfoDiv.innerHTML = `
+                utils.safeSetHTML(modelInfoDiv, `
                     <div style="
                         margin-top: 8px;
                         padding: 8px 12px;
@@ -1835,7 +1869,7 @@ Page content: ${content.text.slice(0, 2000)}...`;
                         ✓ Selected: <strong>${modelInfo.name}</strong> (${modelInfo.category})
                         <br><span style="color: #a0aec0; font-size: 11px;">${modelInfo.description}</span>
                     </div>
-                `;
+                `);
 
                 // Reset border color after delay
                 setTimeout(() => {
