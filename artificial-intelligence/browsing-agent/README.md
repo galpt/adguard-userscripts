@@ -27,7 +27,9 @@ A sophisticated userscript that transforms your browsing experience with Google 
 - **Smart Model Selection**: Organized dropdown with category grouping
 - **Secure API Key Storage**: Persistent settings with secure local storage
 
-### 🧠 **Intelligent Content Analysis**
+### 🧠 **Intelligent Content Analysis & Function Calling**
+- **Function-Calling System**: AI can automatically execute browser functions through structured responses
+- **Automatic URL Browsing**: AI detects and fetches content from URLs mentioned in conversations
 - **Page Summarization**: Instant analysis of current page content
 - **Context-Aware Responses**: AI understands the website you're viewing
 - **Multimedia Generation**: Create images with Imagen, videos with Veo, audio with TTS
@@ -35,14 +37,20 @@ A sophisticated userscript that transforms your browsing experience with Google 
 - **Embedding Vectors**: Generate text embeddings for semantic search
 - **Real-time Stats**: Live word count, link analysis, and image detection
 - **Smart Recommendations**: Personalized suggestions based on page content
+- **Cross-Site Analysis**: Browse and analyze multiple websites in one conversation
 
 ### 🛠️ **Advanced DOM Manipulation**
+- **Real-time DOM Control**: AI can directly create, modify, and remove webpage elements
+- **Intelligent Element Creation**: Ask AI to add buttons, divs, text, or any HTML element
+- **Style Manipulation**: Change colors, fonts, sizes, and positioning on-the-fly
+- **Smart Element Targeting**: AI understands page structure to place elements correctly
 - **Ad Blocking**: Removes advertisements and sponsored content
 - **Popup Elimination**: Clears intrusive popups and overlays
 - **Cookie Notice Removal**: Hides GDPR and cookie consent banners
 - **Social Widget Cleanup**: Removes social sharing buttons and widgets
 - **Newsletter Signup Removal**: Eliminates email capture forms
 - **Smart Restore**: One-click restoration of all hidden elements
+- **Action History**: Track all DOM changes with ability to review and undo
 
 ## 🔧 Installation
 
@@ -73,11 +81,55 @@ The script is designed to work seamlessly with AdGuard Desktop, providing AI-pow
 - **Input Field**: Type questions or commands for the AI assistant
 
 ### Common Commands
+
+#### Content Analysis
 - **"Summarize this page"** - Get an intelligent summary of the current content
-- **"Clean up this page"** - Remove ads, popups, and distracting elements
 - **"What are the main points?"** - Extract key information from the page
-- **"Restore page"** - Bring back any hidden elements
 - **"Help me understand this"** - Get explanations of complex content
+
+#### DOM Manipulation
+- **"Add a red button that says Click me"** - Create custom buttons with specific styling
+- **"Remove all ads from this page"** - Eliminate advertisement elements
+- **"Change the background color to blue"** - Modify page styling
+- **"Hide all images on this page"** - Selectively hide content types
+- **"Add a text box next to the search button"** - Create and position new elements
+
+#### Page Cleanup
+- **"Clean up this page"** - Remove ads, popups, and distracting elements
+- **"Restore page"** - Bring back any hidden elements
+
+#### URL Browsing
+- **"Summarize https://example.com"** - Automatically browse and analyze external URLs
+- **"Compare this page with https://competitor.com"** - Cross-site content analysis
+- **"What's the latest on https://news-site.com?"** - Real-time web content fetching
+
+## 🔧 Function Calling System
+
+### How It Works
+The AI can execute browser functions by including structured JSON commands in its responses. This enables seamless integration between conversation and action.
+
+### Available Functions
+1. **browseUrl** - Fetch and analyze content from external URLs
+2. **createElement** - Create new HTML elements with styling and positioning
+3. **removeElement** - Remove elements using CSS selectors
+4. **modifyElement** - Modify existing elements (text, styles, attributes)
+5. **addStyles** - Inject custom CSS into the page
+6. **analyzeContent** - Perform deep content analysis
+
+### Example Function Call
+When you ask "Add a blue button next to the search box", the AI responds with:
+
+```
+I'll add a blue button next to the search box for you.
+
+[FUNCTION_CALL]
+{"function": "createElement", "element": "button", "text": "Click me", "styles": {"backgroundColor": "blue", "color": "white", "padding": "10px"}, "target": "input[type='search']", "position": "after", "description": "Creating blue button next to search box"}
+[/FUNCTION_CALL]
+
+The button has been added successfully!
+```
+
+The function call is automatically detected and executed, then the AI receives feedback about the result.
 
 ## 🔒 Authentication & Security
 
@@ -149,6 +201,8 @@ class UIManager {
 The userscript automatically checks for updates from the GitHub repository. Manual updates can be triggered through your userscript manager.
 
 ### Version History
+- **v4.0.0**: 🚀 Complete orchestration overhaul - AI now has function-calling capabilities, automatic URL browsing, intelligent action execution, and seamless integration with browser functions
+- **v3.3.0**: 🛠️ Major DOM manipulation overhaul - AI can now directly create, modify, and remove webpage elements in real-time with intelligent targeting
 - **v3.2.3**: 🔧 Fixed API key URL, enhanced Send button styling, improved model selection with visual feedback and proper dark theme
 - **v3.2.2**: 🎨 Major UI overhaul - improved spacing, custom scrollbars like v.recipes, better typography, enhanced animations
 - **v3.2.1**: 🔄 Updated to Gemma 3 models (deprecated Gemma 2), includes 3n E2B/E4B and 3 series variants

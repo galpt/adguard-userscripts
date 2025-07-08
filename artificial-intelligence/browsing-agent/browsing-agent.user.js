@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         AI Browsing Agent (Gemini-Powered)
 // @namespace    https://github.com/galpt/adguard-userscripts
-// @version      3.2.3
-// @description  Intelligent browsing assistant powered by Google Gemini API with real-time content analysis and DOM manipulation
+// @version      4.0.0
+// @description  Intelligent browsing assistant powered by Google Gemini API with function-calling, URL browsing, real-time DOM manipulation, and advanced content analysis
 // @author       galpt
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -21,7 +21,7 @@
 
     // Configuration
     const CONFIG = {
-        version: '3.1.0',
+        version: '4.0.0',
         apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
         defaultModel: 'gemini-2.5-flash',
         models: {
@@ -121,12 +121,653 @@
         }
     };
 
+    // Function Orchestrator - handles all browser function calls
+    class FunctionOrchestrator {
+        constructor() {
+            this.actionHistory = [];
+            this.browsedUrls = new Set();
+        }
+
+        generateSystemPrompt(pageContext) {
+            return `You are an intelligent browser assistant with access to various functions. You can analyze content, manipulate DOM elements, browse URLs, and more.
+
+CURRENT PAGE CONTEXT:
+Title: ${pageContext.title}
+URL: ${pageContext.url}
+Content Preview: ${pageContext.text.slice(0, 1000)}...
+
+AVAILABLE FUNCTIONS:
+You can call browser functions by including JSON function calls in your response. Functions available:
+
+1. **browseUrl** - Fetch and analyze content from URLs
+   {"function": "browseUrl", "url": "https://example.com", "description": "Fetching example.com"}
+
+2. **createElement** - Create new DOM elements
+   {"function": "createElement", "element": "button", "text": "Click me", "styles": {"color": "red"}, "target": "body", "position": "append", "description": "Creating a red button"}
+
+3. **removeElement** - Remove DOM elements
+   {"function": "removeElement", "selector": ".ads, [id*='ad']", "description": "Removing advertisements"}
+
+4. **modifyElement** - Modify existing DOM elements
+   {"function": "modifyElement", "selector": "h1", "styles": {"color": "blue"}, "description": "Making headers blue"}
+
+5. **addStyles** - Add CSS styles to page
+   {"function": "addStyles", "css": "body { background: black; }", "description": "Adding dark background"}
+
+6. **analyzeContent** - Deep analysis of current page
+   {"function": "analyzeContent", "focus": "main content", "description": "Analyzing page content"}
+
+FUNCTION CALL FORMAT:
+To call functions, include them in your response like this:
+
+Regular response text here...
+
+[FUNCTION_CALL]
+{"function": "functionName", "param1": "value1", "param2": "value2", "description": "What this does"}
+[/FUNCTION_CALL]
+
+More response text...
+
+[FUNCTION_CALL]
+{"function": "anotherFunction", "param1": "value1", "description": "What this does"}
+[/FUNCTION_CALL]
+
+FUNCTION EXECUTION RULES:
+1. You can mix regular text responses with function calls
+2. Function calls will be executed automatically and results will be available
+3. Always include a "description" field explaining what the function does
+4. If a user mentions URLs, automatically browse them using browseUrl
+5. For DOM manipulation requests, use appropriate DOM functions
+6. Multiple function calls in one response are allowed and encouraged
+
+RESPONSE GUIDELINES:
+- Be conversational and helpful
+- Use function calls when they would enhance your response
+- Don't ask permission to use functions - just use them when appropriate
+- Explain what you're doing as you do it
+- If functions fail, handle errors gracefully and suggest alternatives
+
+Remember: You are not just a text assistant - you are an active browser agent that can actually perform actions!`;
+        }
+
+        extractFunctionCalls(responseText) {
+            const functionCallRegex = /\[FUNCTION_CALL\](.*?)\[\/FUNCTION_CALL\]/gs;
+            const calls = [];
+            let match;
+
+            while ((match = functionCallRegex.exec(responseText)) !== null) {
+                try {
+                    const functionData = JSON.parse(match[1].trim());
+                    if (functionData.function) {
+                        calls.push(functionData);
+                    }
+                } catch (error) {
+                    console.warn('Failed to parse function call:', match[1], error);
+                }
+            }
+
+            return calls;
+        }
+
+        removeFunctionCallsFromText(responseText) {
+            return responseText.replace(/\[FUNCTION_CALL\].*?\[\/FUNCTION_CALL\]/gs, '').trim();
+        }
+
+        async executeFunctionCall(functionCall) {
+            console.log('🚀 Executing function:', functionCall.function, functionCall);
+
+            try {
+                switch (functionCall.function) {
+                    case 'browseUrl':
+                        return await this.browseUrl(functionCall);
+                    case 'createElement':
+                        return await this.createElement(functionCall);
+                    case 'removeElement':
+                        return await this.removeElement(functionCall);
+                    case 'modifyElement':
+                        return await this.modifyElement(functionCall);
+                    case 'addStyles':
+                        return await this.addStyles(functionCall);
+                    case 'analyzeContent':
+                        return await this.analyzeContent(functionCall);
+                    default:
+                        throw new Error(`Unknown function: ${functionCall.function}`);
+                }
+            } catch (error) {
+                console.error('Function execution error:', error);
+                return {
+                    success: false,
+                    error: error.message,
+                    function: functionCall.function
+                };
+            }
+        }
+
+        async browseUrl(params) {
+            if (this.browsedUrls.has(params.url)) {
+                return {
+                    success: true,
+                    result: 'URL already browsed in this session',
+                    cached: true
+                };
+            }
+
+            try {
+                // Use GM_xmlhttpRequest to fetch URL content
+                const response = await new Promise((resolve, reject) => {
+                    GM_xmlhttpRequest({
+                        method: 'GET',
+                        url: params.url,
+                        timeout: 10000,
+                        onload: resolve,
+                        onerror: reject,
+                        ontimeout: () => reject(new Error('Request timeout'))
+                    });
+                });
+
+                if (response.status === 200) {
+                    this.browsedUrls.add(params.url);
+                    const content = this.extractTextFromHTML(response.responseText);
+
+                    this.actionHistory.push({
+                        action: 'browse',
+                        url: params.url,
+                        timestamp: Date.now(),
+                        description: params.description
+                    });
+
+                    return {
+                        success: true,
+                        result: `Successfully browsed ${params.url}. Content: ${content.slice(0, 2000)}...`,
+                        content: content,
+                        title: this.extractTitleFromHTML(response.responseText)
+                    };
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                return {
+                    success: false,
+                    error: `Failed to browse ${params.url}: ${error.message}`
+                };
+            }
+        }
+
+        extractTextFromHTML(html) {
+            // Create a temporary DOM element to parse HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+
+            // Remove script and style elements
+            const scripts = tempDiv.querySelectorAll('script, style, nav, header, footer, aside');
+            scripts.forEach(el => el.remove());
+
+            return tempDiv.textContent || tempDiv.innerText || '';
+        }
+
+        extractTitleFromHTML(html) {
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            return titleMatch ? titleMatch[1].trim() : 'Untitled';
+        }
+
+        async createElement(params) {
+            const element = document.createElement(params.element || 'div');
+
+            if (params.text) element.textContent = params.text;
+            if (params.innerHTML) element.innerHTML = params.innerHTML;
+            if (params.id) element.id = params.id;
+            if (params.className) element.className = params.className;
+
+            if (params.attributes) {
+                Object.entries(params.attributes).forEach(([key, value]) => {
+                    element.setAttribute(key, value);
+                });
+            }
+
+            if (params.styles) {
+                Object.entries(params.styles).forEach(([key, value]) => {
+                    element.style[key] = value;
+                });
+            }
+
+            // Find target element
+            let target = document.body;
+            if (params.target) {
+                const targetElement = document.querySelector(params.target);
+                if (targetElement) {
+                    target = targetElement;
+                } else {
+                    console.warn(`Target not found: ${params.target}, using body instead`);
+                }
+            }
+
+            // Insert element based on position
+            const position = params.position || 'append';
+            switch (position) {
+                case 'prepend':
+                    target.insertBefore(element, target.firstChild);
+                    break;
+                case 'after':
+                    if (target.parentNode) {
+                        target.parentNode.insertBefore(element, target.nextSibling);
+                    } else {
+                        document.body.appendChild(element);
+                    }
+                    break;
+                case 'before':
+                    if (target.parentNode) {
+                        target.parentNode.insertBefore(element, target);
+                    } else {
+                        document.body.appendChild(element);
+                    }
+                    break;
+                default:
+                    target.appendChild(element);
+            }
+
+            this.actionHistory.push({
+                action: 'create',
+                element,
+                timestamp: Date.now(),
+                description: params.description
+            });
+
+            return {
+                success: true,
+                result: params.description || `Created ${params.element || 'div'} element`,
+                element
+            };
+        }
+
+        async removeElement(params) {
+            const elements = document.querySelectorAll(params.selector);
+            if (elements.length === 0) {
+                return {
+                    success: false,
+                    error: `No elements found with selector: ${params.selector}`
+                };
+            }
+
+            const removedElements = [];
+            elements.forEach(element => {
+                removedElements.push({
+                    tag: element.tagName,
+                    id: element.id,
+                    className: element.className
+                });
+                element.remove();
+            });
+
+            this.actionHistory.push({
+                action: 'remove',
+                selector: params.selector,
+                removedElements,
+                timestamp: Date.now(),
+                description: params.description
+            });
+
+            return {
+                success: true,
+                result: params.description || `Removed ${elements.length} element(s)`,
+                removedCount: elements.length
+            };
+        }
+
+        async modifyElement(params) {
+            const elements = document.querySelectorAll(params.selector);
+            if (elements.length === 0) {
+                return {
+                    success: false,
+                    error: `No elements found with selector: ${params.selector}`
+                };
+            }
+
+            elements.forEach(element => {
+                if (params.text !== undefined) element.textContent = params.text;
+                if (params.innerHTML !== undefined) element.innerHTML = params.innerHTML;
+
+                if (params.attributes) {
+                    Object.entries(params.attributes).forEach(([key, value]) => {
+                        element.setAttribute(key, value);
+                    });
+                }
+
+                if (params.styles) {
+                    Object.entries(params.styles).forEach(([key, value]) => {
+                        element.style[key] = value;
+                    });
+                }
+            });
+
+            this.actionHistory.push({
+                action: 'modify',
+                selector: params.selector,
+                timestamp: Date.now(),
+                description: params.description
+            });
+
+            return {
+                success: true,
+                result: params.description || `Modified ${elements.length} element(s)`,
+                modifiedCount: elements.length
+            };
+        }
+
+        async addStyles(params) {
+            const styleId = params.id || `ai-agent-styles-${Date.now()}`;
+            let styleElement = document.getElementById(styleId);
+
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.id = styleId;
+                document.head.appendChild(styleElement);
+            }
+
+            styleElement.textContent += '\n' + params.css;
+
+            this.actionHistory.push({
+                action: 'styles',
+                css: params.css,
+                styleId,
+                timestamp: Date.now(),
+                description: params.description
+            });
+
+            return {
+                success: true,
+                result: params.description || 'Added CSS styles'
+            };
+        }
+
+        async analyzeContent(params) {
+            const content = utils.extractPageContent();
+            const focus = params.focus || 'general';
+
+            let analysis = {
+                title: content.title,
+                url: content.url,
+                wordCount: content.text.split(' ').length,
+                linkCount: content.links.length,
+                imageCount: content.images.length,
+                focus: focus
+            };
+
+            if (focus === 'main content') {
+                // Extract main content areas
+                const mainElements = document.querySelectorAll('main, article, .content, .post, .entry');
+                analysis.mainContentElements = mainElements.length;
+
+                if (mainElements.length > 0) {
+                    const mainText = Array.from(mainElements).map(el => el.textContent).join(' ');
+                    analysis.mainContentWordCount = mainText.split(' ').length;
+                }
+            }
+
+            this.actionHistory.push({
+                action: 'analyze',
+                focus: focus,
+                timestamp: Date.now(),
+                description: params.description
+            });
+
+            return {
+                success: true,
+                result: params.description || `Analyzed page content with focus on: ${focus}`,
+                analysis: analysis
+            };
+        }
+
+        extractURLs(text) {
+            if (typeof text !== 'string') return [];
+            const urlRegex = /(https?:\/\/[^\s!"'<>()\[\]{}]+)/g;
+            const matches = text.match(urlRegex);
+            return matches ? Array.from(new Set(matches)) : [];
+        }
+
+        getActionHistory() {
+            return this.actionHistory.slice();
+        }
+
+        clearHistory() {
+            this.actionHistory = [];
+            this.browsedUrls.clear();
+        }
+    }
+
+    // Legacy DOM manipulation methods for compatibility
+    class DOMManipulator extends FunctionOrchestrator {
+        async executeActions(actionsData) {
+            if (!actionsData.isDOMRequest || !actionsData.actions) {
+                return { success: false, error: 'Invalid DOM actions data' };
+            }
+
+            const results = [];
+
+            for (const action of actionsData.actions) {
+                try {
+                    const result = await this.executeAction(action);
+                    results.push(result);
+                } catch (error) {
+                    results.push({ success: false, error: error.message, action });
+                }
+            }
+
+            const successCount = results.filter(r => r.success).length;
+            const totalCount = results.length;
+
+            return {
+                success: successCount > 0,
+                results,
+                message: actionsData.successMessage || `Executed ${successCount}/${totalCount} actions successfully`,
+                executedCount: successCount,
+                totalCount
+            };
+        }
+
+        executeAction(action) {
+            console.log('🔧 Executing DOM action:', action);
+
+            switch (action.type) {
+                case 'createElement':
+                    return this.createElement(action);
+                case 'removeElement':
+                    return this.removeElement(action);
+                case 'modifyElement':
+                    return this.modifyElement(action);
+                case 'addStyles':
+                    return this.addStyles(action);
+                default:
+                    throw new Error(`Unknown action type: ${action.type}`);
+            }
+        }
+
+        createElement(action) {
+            const element = document.createElement(action.element || 'div');
+
+            if (action.text) element.textContent = action.text;
+            if (action.innerHTML) element.innerHTML = action.innerHTML;
+            if (action.id) element.id = action.id;
+            if (action.className) element.className = action.className;
+
+            if (action.attributes) {
+                Object.entries(action.attributes).forEach(([key, value]) => {
+                    element.setAttribute(key, value);
+                });
+            }
+
+            if (action.styles) {
+                Object.entries(action.styles).forEach(([key, value]) => {
+                    element.style[key] = value;
+                });
+            }
+
+            // Find target element
+            let target = document.body;
+            if (action.target) {
+                const targetElement = document.querySelector(action.target);
+                if (targetElement) {
+                    target = targetElement;
+                } else {
+                    console.warn(`Target not found: ${action.target}, using body instead`);
+                }
+            }
+
+            // Insert element based on position
+            const position = action.position || 'append';
+            switch (position) {
+                case 'prepend':
+                    target.insertBefore(element, target.firstChild);
+                    break;
+                case 'after':
+                    if (target.parentNode) {
+                        target.parentNode.insertBefore(element, target.nextSibling);
+                    } else {
+                        document.body.appendChild(element);
+                    }
+                    break;
+                case 'before':
+                    if (target.parentNode) {
+                        target.parentNode.insertBefore(element, target);
+                    } else {
+                        document.body.appendChild(element);
+                    }
+                    break;
+                default:
+                    target.appendChild(element);
+            }
+
+            this.actionHistory.push({
+                action: 'create',
+                element,
+                timestamp: Date.now(),
+                description: action.description
+            });
+
+            return {
+                success: true,
+                element,
+                message: action.description || `Created ${action.element || 'div'} element`
+            };
+        }
+
+        removeElement(action) {
+            const elements = document.querySelectorAll(action.selector);
+            if (elements.length === 0) {
+                return {
+                    success: false,
+                    error: `No elements found with selector: ${action.selector}`
+                };
+            }
+
+            const removedElements = [];
+            elements.forEach(element => {
+                removedElements.push({
+                    tag: element.tagName,
+                    id: element.id,
+                    className: element.className
+                });
+                element.remove();
+            });
+
+            this.actionHistory.push({
+                action: 'remove',
+                selector: action.selector,
+                removedElements,
+                timestamp: Date.now(),
+                description: action.description
+            });
+
+            return {
+                success: true,
+                message: action.description || `Removed ${elements.length} element(s)`,
+                removedCount: elements.length
+            };
+        }
+
+        modifyElement(action) {
+            const elements = document.querySelectorAll(action.selector);
+            if (elements.length === 0) {
+                return {
+                    success: false,
+                    error: `No elements found with selector: ${action.selector}`
+                };
+            }
+
+            elements.forEach(element => {
+                if (action.text !== undefined) element.textContent = action.text;
+                if (action.innerHTML !== undefined) element.innerHTML = action.innerHTML;
+
+                if (action.attributes) {
+                    Object.entries(action.attributes).forEach(([key, value]) => {
+                        element.setAttribute(key, value);
+                    });
+                }
+
+                if (action.styles) {
+                    Object.entries(action.styles).forEach(([key, value]) => {
+                        element.style[key] = value;
+                    });
+                }
+            });
+
+            this.actionHistory.push({
+                action: 'modify',
+                selector: action.selector,
+                timestamp: Date.now(),
+                description: action.description
+            });
+
+            return {
+                success: true,
+                message: action.description || `Modified ${elements.length} element(s)`,
+                modifiedCount: elements.length
+            };
+        }
+
+        addStyles(action) {
+            const styleId = action.id || `ai-agent-styles-${Date.now()}`;
+            let styleElement = document.getElementById(styleId);
+
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.id = styleId;
+                document.head.appendChild(styleElement);
+            }
+
+            styleElement.textContent += '\n' + action.css;
+
+            this.actionHistory.push({
+                action: 'styles',
+                css: action.css,
+                styleId,
+                timestamp: Date.now(),
+                description: action.description
+            });
+
+            return {
+                success: true,
+                message: action.description || 'Added CSS styles'
+            };
+        }
+
+        getActionHistory() {
+            return this.actionHistory.slice(); // Return copy
+        }
+
+        clearHistory() {
+            this.actionHistory = [];
+        }
+    }
+
     // Gemini API Client
     class GeminiClient {
         constructor() {
             this.apiKey = GM_getValue(CONFIG.storage.apiKey, '');
             this.selectedModel = GM_getValue(CONFIG.storage.selectedModel, CONFIG.defaultModel);
             this.isInitialized = false;
+            this.functionOrchestrator = new FunctionOrchestrator();
+            // Keep legacy reference for backward compatibility
+            this.domManipulator = this.functionOrchestrator;
         }
 
         setApiKey(apiKey) {
@@ -580,6 +1221,20 @@
                                 align-items: center;
                                 gap: 6px;
                             ">🧹 Clean Page</button>
+                            <button class="quick-action" data-action="dom-demo" style="
+                                padding: 8px 16px;
+                                background: rgba(168, 85, 247, 0.08);
+                                border: 1px solid rgba(168, 85, 247, 0.2);
+                                border-radius: 8px;
+                                color: #a855f7;
+                                cursor: pointer;
+                                font-size: 13px;
+                                font-weight: 500;
+                                transition: all 0.2s ease;
+                                display: flex;
+                                align-items: center;
+                                gap: 6px;
+                            ">🔧 DOM Demo</button>
                             <button class="quick-action" data-action="settings" style="
                                 padding: 8px 16px;
                                 background: rgba(246, 173, 85, 0.08);
@@ -778,6 +1433,9 @@
                 case 'clean':
                     this.performCleanup();
                     break;
+                case 'dom-demo':
+                    await this.processMessage('Add a purple button that says "AI Created!" in the top right corner of the page with nice styling');
+                    break;
                 case 'settings':
                     this.showSettings();
                     break;
@@ -804,20 +1462,98 @@
 
             try {
                 const content = utils.extractPageContent();
-                const context = `Page Context:
-Title: ${content.title}
-URL: ${content.url}
-Content preview: ${content.text.slice(0, 2000)}...`;
+                const geminiClient = STATE.geminiClient;
+                const orchestrator = geminiClient.functionOrchestrator;
 
-                const response = await STATE.geminiClient.sendMessage(message, context);
+                // Check for URLs in the message and browse them first
+                const urls = orchestrator.extractURLs(message);
+                let browsedContext = '';
 
-                // Remove loading message and add response
-                this.removeChatMessage(loadingId);
-                this.addChatMessage('assistant', response);
+                if (urls.length > 0) {
+                    this.removeChatMessage(loadingId);
+                    const browsingId = this.addChatMessage('assistant', `🌐 Browsing ${urls.length} URL(s)...`, true);
+
+                    for (const url of urls) {
+                        try {
+                            const browseResult = await orchestrator.browseUrl({ url, description: `Browsing ${url}` });
+                            if (browseResult.success && browseResult.content) {
+                                browsedContext += `\n\nContent from ${url}:\n${browseResult.content.slice(0, 1500)}...`;
+                            }
+                        } catch (error) {
+                            console.warn('Failed to browse URL:', url, error);
+                        }
+                    }
+
+                    this.removeChatMessage(browsingId);
+                    const newLoadingId = this.addChatMessage('assistant', '🤔 Analyzing content...', true);
+                    this.removeChatMessage(newLoadingId);
+                }
+
+                // Generate system prompt with function capabilities
+                const systemPrompt = orchestrator.generateSystemPrompt(content);
+
+                // Create context with current page and browsed content
+                const fullContext = `${systemPrompt}
+
+Current user query: "${message}"
+
+${browsedContext ? `Additional context from browsed URLs:${browsedContext}` : ''}
+
+Page content: ${content.text.slice(0, 2000)}...`;
+
+                // Get AI response
+                const aiResponse = await geminiClient.sendMessage(message, fullContext);
+
+                // Extract and execute function calls
+                const functionCalls = orchestrator.extractFunctionCalls(aiResponse);
+                const cleanResponse = orchestrator.removeFunctionCallsFromText(aiResponse);
+
+                // Display initial response if there's any text content
+                if (cleanResponse.trim()) {
+                    this.removeChatMessage(loadingId);
+                    this.addChatMessage('assistant', cleanResponse);
+                } else {
+                    this.removeChatMessage(loadingId);
+                }
+
+                // Execute function calls if any
+                if (functionCalls.length > 0) {
+                    const executingId = this.addChatMessage('assistant', `⚡ Executing ${functionCalls.length} function(s)...`, true);
+
+                    let functionResults = [];
+                    let successCount = 0;
+
+                    for (const functionCall of functionCalls) {
+                        try {
+                            const result = await orchestrator.executeFunctionCall(functionCall);
+                            functionResults.push(result);
+                            if (result.success) successCount++;
+
+                            // Add individual function result message
+                            if (result.success) {
+                                this.addChatMessage('assistant', `✅ ${result.result}`, false, 'normal');
+                            } else {
+                                this.addChatMessage('assistant', `❌ ${functionCall.function} failed: ${result.error}`, false, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Function execution error:', error);
+                            this.addChatMessage('assistant', `❌ Error executing ${functionCall.function}: ${error.message}`, false, 'error');
+                        }
+                    }
+
+                    this.removeChatMessage(executingId);
+
+                    // Add summary message
+                    if (successCount > 0) {
+                        const summaryMsg = `🎯 Completed ${successCount}/${functionCalls.length} function(s) successfully`;
+                        this.addChatMessage('assistant', summaryMsg, false, 'normal');
+                    }
+                }
 
             } catch (error) {
                 this.removeChatMessage(loadingId);
                 this.addChatMessage('assistant', `❌ Error: ${error.message}`, false, 'error');
+                console.error('Process message error:', error);
             }
         }
 
