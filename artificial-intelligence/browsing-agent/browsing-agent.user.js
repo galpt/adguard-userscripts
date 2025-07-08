@@ -1,77 +1,323 @@
 // ==UserScript==
-// @name         AI Browsing Agent (Gemini-Powered)
-// @namespace    https://github.com/galpt/adguard-userscripts
-// @version      4.4.0
-// @description  Intelligent browsing assistant powered by Google Gemini API with function-calling, URL browsing, real-time DOM manipulation, and advanced content analysis
-// @author       galpt
+// @name         Intelligent Browsing Agent
+// @namespace    https://github.com/galptuct/
+// @version      4.6.0
+// @description  Advanced AI-powered browsing assistant with sophisticated intent analysis, intelligent URL browsing, conversation memory, DOM manipulation, and multi-source content integration
 // @match        *://*/*
-// @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_deleteValue
-// @grant        GM_notification
-// @grant        unsafeWindow
+// @grant        GM_xmlhttpRequest
 // @run-at       document-end
-// @updateURL    https://raw.githubusercontent.com/galpt/adguard-userscripts/main/artificial-intelligence/browsing-agent/browsing-agent.user.js
-// @downloadURL  https://raw.githubusercontent.com/galpt/adguard-userscripts/main/artificial-intelligence/browsing-agent/browsing-agent.user.js
 // ==/UserScript==
 
-(function () {
+(() => {
     'use strict';
 
     // Configuration
     const CONFIG = {
-        version: '4.4.0',
+        version: '4.6.0',
         apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
         defaultModel: 'gemini-2.5-flash',
         models: {
-            // Gemini 2.5 Models
-            'gemini-2.5-pro': { name: 'Gemini 2.5 Pro', description: 'Most powerful thinking model with maximum accuracy', category: 'Primary', type: 'text', endpoint: 'generateContent' },
-            'gemini-2.5-flash': { name: 'Gemini 2.5 Flash', description: 'Best price-performance with adaptive thinking', category: 'Primary', type: 'text', endpoint: 'generateContent' },
-            'gemini-2.5-flash-lite-preview-06-17': { name: 'Gemini 2.5 Flash Lite', description: 'Cost-efficient with high throughput', category: 'Primary', type: 'text', endpoint: 'generateContent' },
+            // Gemini 2.5 Models - Latest with 1M+ context windows
+            'gemini-2.5-pro': {
+                name: 'Gemini 2.5 Pro',
+                description: 'Most powerful thinking model with maximum accuracy',
+                category: 'Primary',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 2000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['complex-analysis', 'long-context', 'reasoning']
+            },
+            'gemini-2.5-flash': {
+                name: 'Gemini 2.5 Flash',
+                description: 'Best price-performance with adaptive thinking',
+                category: 'Primary',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['speed', 'efficiency', 'general-purpose']
+            },
+            'gemini-2.5-flash-lite-preview-06-17': {
+                name: 'Gemini 2.5 Flash Lite',
+                description: 'Cost-efficient with high throughput',
+                category: 'Primary',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 4096,
+                optimizedFor: ['cost-efficiency', 'throughput']
+            },
 
             // Gemini 2.5 Audio & TTS Models
-            'gemini-2.5-flash-preview-native-audio-dialog': { name: 'Gemini 2.5 Flash Native Audio', description: 'Interactive conversational audio', category: 'Audio', type: 'audio', endpoint: 'generateContent' },
-            'gemini-2.5-flash-exp-native-audio-thinking-dialog': { name: 'Gemini 2.5 Flash Audio + Thinking', description: 'Audio with thinking capabilities', category: 'Audio', type: 'audio', endpoint: 'generateContent' },
-            'gemini-2.5-flash-preview-tts': { name: 'Gemini 2.5 Flash TTS', description: 'High-quality text-to-speech', category: 'Audio', type: 'tts', endpoint: 'generateContent' },
-            'gemini-2.5-pro-preview-tts': { name: 'Gemini 2.5 Pro TTS', description: 'Premium text-to-speech', category: 'Audio', type: 'tts', endpoint: 'generateContent' },
+            'gemini-2.5-flash-preview-native-audio-dialog': {
+                name: 'Gemini 2.5 Flash Native Audio',
+                description: 'Interactive conversational audio',
+                category: 'Audio',
+                type: 'audio',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['audio-interaction', 'conversation']
+            },
+            'gemini-2.5-flash-exp-native-audio-thinking-dialog': {
+                name: 'Gemini 2.5 Flash Audio + Thinking',
+                description: 'Audio with thinking capabilities',
+                category: 'Audio',
+                type: 'audio',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['audio-thinking', 'reasoning']
+            },
+            'gemini-2.5-flash-preview-tts': {
+                name: 'Gemini 2.5 Flash TTS',
+                description: 'High-quality text-to-speech',
+                category: 'Audio',
+                type: 'tts',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['text-to-speech']
+            },
+            'gemini-2.5-pro-preview-tts': {
+                name: 'Gemini 2.5 Pro TTS',
+                description: 'Premium text-to-speech',
+                category: 'Audio',
+                type: 'tts',
+                endpoint: 'generateContent',
+                contextWindow: 2000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['premium-tts']
+            },
 
             // Gemini 2.0 Models
-            'gemini-2.0-flash': { name: 'Gemini 2.0 Flash', description: 'Next-gen features with superior speed', category: 'Primary', type: 'text', endpoint: 'generateContent' },
-            'gemini-2.0-flash-preview-image-generation': { name: 'Gemini 2.0 Flash + Images', description: 'Conversational image generation', category: 'Multimodal', type: 'text-image', endpoint: 'generateContent' },
-            'gemini-2.0-flash-lite': { name: 'Gemini 2.0 Flash Lite', description: 'Optimized for speed and efficiency', category: 'Primary', type: 'text', endpoint: 'generateContent' },
+            'gemini-2.0-flash': {
+                name: 'Gemini 2.0 Flash',
+                description: 'Next-gen features with superior speed',
+                category: 'Primary',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['next-gen-features', 'speed']
+            },
+            'gemini-2.0-flash-preview-image-generation': {
+                name: 'Gemini 2.0 Flash + Images',
+                description: 'Conversational image generation',
+                category: 'Multimodal',
+                type: 'text-image',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['image-generation', 'multimodal']
+            },
+            'gemini-2.0-flash-lite': {
+                name: 'Gemini 2.0 Flash Lite',
+                description: 'Optimized for speed and efficiency',
+                category: 'Primary',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 4096,
+                optimizedFor: ['speed', 'efficiency']
+            },
 
             // Gemini 1.5 Models
-            'gemini-1.5-flash': { name: 'Gemini 1.5 Flash', description: 'Fast and versatile multimodal', category: 'Primary', type: 'text', endpoint: 'generateContent' },
-            'gemini-1.5-flash-8b': { name: 'Gemini 1.5 Flash 8B', description: 'Lightweight for high-volume tasks', category: 'Primary', type: 'text', endpoint: 'generateContent' },
-            'gemini-1.5-pro': { name: 'Gemini 1.5 Pro', description: 'Complex reasoning with long context', category: 'Primary', type: 'text', endpoint: 'generateContent' },
+            'gemini-1.5-flash': {
+                name: 'Gemini 1.5 Flash',
+                description: 'Fast and versatile multimodal',
+                category: 'Primary',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['multimodal', 'versatility']
+            },
+            'gemini-1.5-flash-8b': {
+                name: 'Gemini 1.5 Flash 8B',
+                description: 'Lightweight for high-volume tasks',
+                category: 'Primary',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['high-volume', 'lightweight']
+            },
+            'gemini-1.5-pro': {
+                name: 'Gemini 1.5 Pro',
+                description: 'Complex reasoning with long context',
+                category: 'Primary',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 2000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['complex-reasoning', 'long-context']
+            },
 
             // Live API Models
-            'gemini-live-2.5-flash-preview': { name: 'Gemini 2.5 Flash Live', description: 'Real-time voice and video interactions', category: 'Live', type: 'live', endpoint: 'streamGenerateContent' },
-            'gemini-2.0-flash-live-001': { name: 'Gemini 2.0 Flash Live', description: 'Bidirectional audio/video streaming', category: 'Live', type: 'live', endpoint: 'streamGenerateContent' },
+            'gemini-live-2.5-flash-preview': {
+                name: 'Gemini 2.5 Flash Live',
+                description: 'Real-time voice and video interactions',
+                category: 'Live',
+                type: 'live',
+                endpoint: 'streamGenerateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['real-time', 'voice-video']
+            },
+            'gemini-2.0-flash-live-001': {
+                name: 'Gemini 2.0 Flash Live',
+                description: 'Bidirectional audio/video streaming',
+                category: 'Live',
+                type: 'live',
+                endpoint: 'streamGenerateContent',
+                contextWindow: 1000000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['streaming', 'bidirectional']
+            },
 
             // Imagen Models (Image Generation)
-            'imagen-4.0-generate-preview-06-06': { name: 'Imagen 4.0 Standard', description: 'Latest high-quality image generation', category: 'Image Generation', type: 'image', endpoint: 'generateImage' },
-            'imagen-4.0-ultra-generate-preview-06-06': { name: 'Imagen 4.0 Ultra', description: 'Premium image generation with highest quality', category: 'Image Generation', type: 'image', endpoint: 'generateImage' },
-            'imagen-3.0-generate-002': { name: 'Imagen 3.0', description: 'High-quality text-to-image generation', category: 'Image Generation', type: 'image', endpoint: 'generateImage' },
+            'imagen-4.0-generate-preview-06-06': {
+                name: 'Imagen 4.0 Standard',
+                description: 'Latest high-quality image generation',
+                category: 'Image Generation',
+                type: 'image',
+                endpoint: 'generateImage',
+                contextWindow: 100000,
+                maxOutputTokens: 4096,
+                optimizedFor: ['image-generation', 'quality']
+            },
+            'imagen-4.0-ultra-generate-preview-06-06': {
+                name: 'Imagen 4.0 Ultra',
+                description: 'Premium image generation with highest quality',
+                category: 'Image Generation',
+                type: 'image',
+                endpoint: 'generateImage',
+                contextWindow: 100000,
+                maxOutputTokens: 4096,
+                optimizedFor: ['premium-image', 'highest-quality']
+            },
+            'imagen-3.0-generate-002': {
+                name: 'Imagen 3.0',
+                description: 'High-quality text-to-image generation',
+                category: 'Image Generation',
+                type: 'image',
+                endpoint: 'generateImage',
+                contextWindow: 100000,
+                maxOutputTokens: 4096,
+                optimizedFor: ['text-to-image']
+            },
 
             // Veo Models (Video Generation)
-            'veo-2.0-generate-001': { name: 'Veo 2.0', description: 'High-quality text and image-to-video generation', category: 'Video Generation', type: 'video', endpoint: 'generateVideo' },
+            'veo-2.0-generate-001': {
+                name: 'Veo 2.0',
+                description: 'High-quality text and image-to-video generation',
+                category: 'Video Generation',
+                type: 'video',
+                endpoint: 'generateVideo',
+                contextWindow: 100000,
+                maxOutputTokens: 4096,
+                optimizedFor: ['video-generation', 'text-to-video']
+            },
 
             // Gemma Models (Open Source)
-            'gemma-3n-e2b-it': { name: 'Gemma 3n E2B', description: 'Ultra-lightweight efficient model', category: 'Gemma', type: 'text', endpoint: 'generateContent' },
-            'gemma-3n-e4b-it': { name: 'Gemma 3n E4B', description: 'Compact efficient model', category: 'Gemma', type: 'text', endpoint: 'generateContent' },
-            'gemma-3-1b-it': { name: 'Gemma 3 1B', description: 'Lightweight open-source model', category: 'Gemma', type: 'text', endpoint: 'generateContent' },
-            'gemma-3-4b-it': { name: 'Gemma 3 4B', description: 'Balanced performance model', category: 'Gemma', type: 'text', endpoint: 'generateContent' },
-            'gemma-3-12b-it': { name: 'Gemma 3 12B', description: 'High-capability model', category: 'Gemma', type: 'text', endpoint: 'generateContent' },
-            'gemma-3-27b-it': { name: 'Gemma 3 27B', description: 'Most powerful open-source model', category: 'Gemma', type: 'text', endpoint: 'generateContent' },
+            'gemma-3n-e2b-it': {
+                name: 'Gemma 3n E2B',
+                description: 'Ultra-lightweight efficient model',
+                category: 'Gemma',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 100000,
+                maxOutputTokens: 2048,
+                optimizedFor: ['ultra-lightweight', 'efficiency']
+            },
+            'gemma-3n-e4b-it': {
+                name: 'Gemma 3n E4B',
+                description: 'Compact efficient model',
+                category: 'Gemma',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 100000,
+                maxOutputTokens: 2048,
+                optimizedFor: ['compact', 'efficiency']
+            },
+            'gemma-3-1b-it': {
+                name: 'Gemma 3 1B',
+                description: 'Lightweight open-source model',
+                category: 'Gemma',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 100000,
+                maxOutputTokens: 2048,
+                optimizedFor: ['lightweight', 'open-source']
+            },
+            'gemma-3-4b-it': {
+                name: 'Gemma 3 4B',
+                description: 'Balanced performance model',
+                category: 'Gemma',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 100000,
+                maxOutputTokens: 4096,
+                optimizedFor: ['balanced-performance']
+            },
+            'gemma-3-12b-it': {
+                name: 'Gemma 3 12B',
+                description: 'High-capability model',
+                category: 'Gemma',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 100000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['high-capability']
+            },
+            'gemma-3-27b-it': {
+                name: 'Gemma 3 27B',
+                description: 'Most powerful open-source model',
+                category: 'Gemma',
+                type: 'text',
+                endpoint: 'generateContent',
+                contextWindow: 100000,
+                maxOutputTokens: 8192,
+                optimizedFor: ['most-powerful', 'open-source']
+            },
 
             // Embedding Models
-            'text-embedding-004': { name: 'Text Embedding 004', description: 'Latest text embedding model', category: 'Embedding', type: 'embedding', endpoint: 'embedContent' },
-            'embedding-001': { name: 'Embedding 001', description: 'Classic embedding model', category: 'Embedding', type: 'embedding', endpoint: 'embedContent' },
+            'text-embedding-004': {
+                name: 'Text Embedding 004',
+                description: 'Latest text embedding model',
+                category: 'Embedding',
+                type: 'embedding',
+                endpoint: 'embedContent',
+                contextWindow: 50000,
+                maxOutputTokens: 1024,
+                optimizedFor: ['text-embedding', 'latest']
+            },
+            'embedding-001': {
+                name: 'Embedding 001',
+                description: 'Classic embedding model',
+                category: 'Embedding',
+                type: 'embedding',
+                endpoint: 'embedContent',
+                contextWindow: 50000,
+                maxOutputTokens: 1024,
+                optimizedFor: ['embedding', 'classic']
+            },
 
             // Specialized Models
-            'aqa': { name: 'AQA Model', description: 'Attributed Question-Answering', category: 'Specialized', type: 'text', endpoint: 'generateAnswer' }
+            'aqa': {
+                name: 'AQA Model',
+                description: 'Attributed Question-Answering',
+                category: 'Specialized',
+                type: 'text',
+                endpoint: 'generateAnswer',
+                contextWindow: 100000,
+                maxOutputTokens: 4096,
+                optimizedFor: ['question-answering', 'attribution']
+            }
         },
         storage: {
             apiKey: 'ai-browsing-agent-api-key',
@@ -81,20 +327,150 @@
         debug: false
     };
 
+    // Conversation Management Configuration with Context-Aware Limits
+    const CONVERSATION_CONFIG = {
+        // Default conservative limits for unknown models
+        default: {
+            maxHistoryPairs: 10,
+            maxTokens: 6000,
+            summaryThreshold: 8,
+            browsingDepthLimit: 3
+        },
+        // Model-specific configuration based on context windows
+        // Following Google's official prompt engineering guidelines
+        modelLimits: {
+            // Gemini 2.5 Models - 1M+ context window capability
+            'gemini-2.5-pro': {
+                maxHistoryPairs: 50,
+                maxTokens: 500000,  // Use significant portion of 2M context
+                summaryThreshold: 40,
+                browsingDepthLimit: 10,
+                features: ['long-context', 'complex-analysis', 'reasoning']
+            },
+            'gemini-2.5-flash': {
+                maxHistoryPairs: 30,
+                maxTokens: 300000,  // Use significant portion of 1M context
+                summaryThreshold: 25,
+                browsingDepthLimit: 8,
+                features: ['speed', 'efficiency', 'general-purpose']
+            },
+            'gemini-2.5-flash-lite-preview-06-17': {
+                maxHistoryPairs: 20,
+                maxTokens: 200000,
+                summaryThreshold: 15,
+                browsingDepthLimit: 6,
+                features: ['cost-efficiency', 'throughput']
+            },
+
+            // Gemini 2.0 Models - 1M context window
+            'gemini-2.0-flash': {
+                maxHistoryPairs: 25,
+                maxTokens: 250000,
+                summaryThreshold: 20,
+                browsingDepthLimit: 7,
+                features: ['next-gen-features', 'speed']
+            },
+            'gemini-2.0-flash-lite': {
+                maxHistoryPairs: 15,
+                maxTokens: 150000,
+                summaryThreshold: 12,
+                browsingDepthLimit: 5,
+                features: ['speed', 'efficiency']
+            },
+
+            // Gemini 1.5 Models
+            'gemini-1.5-pro': {
+                maxHistoryPairs: 40,
+                maxTokens: 400000,  // 2M context window
+                summaryThreshold: 30,
+                browsingDepthLimit: 8,
+                features: ['complex-reasoning', 'long-context']
+            },
+            'gemini-1.5-flash': {
+                maxHistoryPairs: 20,
+                maxTokens: 200000,  // 1M context window
+                summaryThreshold: 15,
+                browsingDepthLimit: 6,
+                features: ['multimodal', 'versatility']
+            },
+            'gemini-1.5-flash-8b': {
+                maxHistoryPairs: 15,
+                maxTokens: 150000,
+                summaryThreshold: 12,
+                browsingDepthLimit: 5,
+                features: ['high-volume', 'lightweight']
+            },
+
+            // Gemma Models - Conservative limits
+            'gemma-3-27b-it': {
+                maxHistoryPairs: 12,
+                maxTokens: 50000,
+                summaryThreshold: 8,
+                browsingDepthLimit: 4,
+                features: ['most-powerful', 'open-source']
+            },
+            'gemma-3-12b-it': {
+                maxHistoryPairs: 10,
+                maxTokens: 40000,
+                summaryThreshold: 7,
+                browsingDepthLimit: 3,
+                features: ['high-capability']
+            }
+        },
+
+        // Get configuration for specific model
+        getForModel: function (modelId) {
+            return this.modelLimits[modelId] || this.default;
+        },
+
+        // Check if model supports large context operations
+        isLargeContextModel: function (modelId) {
+            const config = this.getForModel(modelId);
+            return config.maxTokens > 100000;
+        },
+
+        // Get optimal chunk size based on model capabilities
+        getChunkSize: function (modelId) {
+            const config = this.getForModel(modelId);
+            if (config.maxTokens > 300000) return 50000;  // Large models
+            if (config.maxTokens > 100000) return 20000;  // Medium models
+            return 8000;  // Small models
+        }
+    };
+
+    // Intent Analysis Configuration
+    const INTENT_CONFIG = {
+        patterns: {
+            domManipulation: {
+                actions: ['remove', 'delete', 'hide', 'edit', 'change', 'modify', 'update', 'add', 'create', 'insert', 'style', 'color'],
+                contexts: ['this', 'element', 'div', 'button', 'link', 'text', 'banner', 'popup', 'modal', 'advertisement', 'ad'],
+                htmlIndicators: ['<div', '<span', '<button', '<a', 'class=', 'id=', 'data-'],
+                certaintyThreshold: 0.7
+            },
+            urlBrowsing: {
+                actions: ['browse', 'visit', 'open', 'go to', 'check', 'analyze', 'summarize'],
+                contexts: ['url', 'website', 'link', 'page', 'site'],
+                urlIndicators: ['http://', 'https://', 'www.', '.com', '.org', '.net'],
+                certaintyThreshold: 0.6
+            },
+            contentAnalysis: {
+                actions: ['analyze', 'summarize', 'what', 'explain', 'describe', 'tell me about'],
+                contexts: ['content', 'page', 'article', 'information'],
+                certaintyThreshold: 0.5
+            }
+        },
+        weights: {
+            action: 0.4,
+            context: 0.3,
+            indicators: 0.3
+        }
+    };
+
     // Global state
     const STATE = {
         isInitialized: false,
         geminiClient: null,
         uiManager: null
-    };
-
-    // Add conversation management
-    const CONVERSATION_CONFIG = {
-        maxHistoryPairs: 10, // Maximum conversation pairs to keep in direct context
-        maxTokens: 8000, // Approximate token limit for context
-        summaryThreshold: 5, // Number of pairs before considering summarization
-        maxBrowsingDepth: 3, // Maximum URLs to browse in one turn
-        maxExistingSummaryLength: 2000 // Max chars for existing summary in prompts
     };
 
     // Utilities
@@ -441,8 +817,9 @@ Format as: Updated comprehensive summary covering all browsed content so far.`;
             const firstUrl = urls[0];
             await this.browseUrl({ url: firstUrl, description: userMessage });
 
-            // Intelligent decision-making for additional URLs
-            while (geminiClient.currentTurnBrowsingDepth < CONVERSATION_CONFIG.maxBrowsingDepth && urls.length > 1) {
+            // Intelligent decision-making for additional URLs with model-aware limits
+            const modelConfig = CONVERSATION_CONFIG.getForModel(geminiClient.selectedModel);
+            while (geminiClient.currentTurnBrowsingDepth < modelConfig.browsingDepthLimit && urls.length > 1) {
                 const shouldBrowseMore = await this.shouldBrowseAdditionalUrls(userMessage, urls.slice(1));
 
                 if (!shouldBrowseMore.continue) break;
@@ -1345,10 +1722,14 @@ Respond with JSON:
             this.saveConversationHistory();
         }
 
-        getRecentConversationHistory(maxPairs = CONVERSATION_CONFIG.maxHistoryPairs) {
+        getRecentConversationHistory(maxPairs = null) {
+            // Get model-specific configuration
+            const modelConfig = CONVERSATION_CONFIG.getForModel(this.selectedModel);
+            const actualMaxPairs = maxPairs || modelConfig.maxHistoryPairs;
+
             // Filter out internal messages and get recent user/assistant pairs
             const directHistory = this.conversationHistory.filter(msg => !msg.isInternal);
-            return directHistory.slice(-maxPairs * 2); // 2 messages per pair
+            return directHistory.slice(-actualMaxPairs * 2); // 2 messages per pair
         }
 
         clearConversationHistory() {
@@ -1358,6 +1739,8 @@ Respond with JSON:
         }
 
         async manageConversationContext(currentUserQuery) {
+            // Get model-specific configuration
+            const modelConfig = CONVERSATION_CONFIG.getForModel(this.selectedModel);
             const directHistory = this.getRecentConversationHistory();
             let historyTokens = 0;
 
@@ -1365,9 +1748,15 @@ Respond with JSON:
                 historyTokens += utils.estimateTokens(msg.content);
             }
 
+            // Add current query tokens
+            historyTokens += utils.estimateTokens(currentUserQuery);
+
             // If history is too long, summarize older messages
-            if (historyTokens > CONVERSATION_CONFIG.maxTokens && this.conversationHistory.length > CONVERSATION_CONFIG.summaryThreshold * 2) {
+            if (historyTokens > modelConfig.maxTokens && this.conversationHistory.length > modelConfig.summaryThreshold * 2) {
+                console.log(`📊 Context management: ${historyTokens} tokens > ${modelConfig.maxTokens} limit for ${this.selectedModel}`);
                 await this.summarizeOlderMessages();
+            } else if (CONVERSATION_CONFIG.isLargeContextModel(this.selectedModel)) {
+                console.log(`🧠 Large context model (${this.selectedModel}): Using ${historyTokens}/${modelConfig.maxTokens} tokens`);
             }
         }
 
@@ -1566,7 +1955,7 @@ Provide a brief summary that captures the key points and context.`;
                             temperature: temperature,
                             topK: 40,
                             topP: 0.8,
-                            maxOutputTokens: 8000 // Increased for more comprehensive responses
+                            maxOutputTokens: modelInfo.maxOutputTokens || 8192 // Use model-specific output limits
                         }
                     };
 
@@ -1783,7 +2172,7 @@ Provide a brief summary that captures the key points and context.`;
                 background: linear-gradient(145deg, #1a1b1e 0%, #27282b 100%);
                 border-radius: 20px;
                 width: 92%;
-                max-width: 640px;
+                max-width: 800px;
                 max-height: 88vh;
                 overflow: hidden;
                 box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -1824,7 +2213,7 @@ Provide a brief summary that captures the key points and context.`;
                     
                     <div style="flex-shrink: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; margin-top: 8px;">
                         <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                            <textarea id="ai-agent-input" placeholder="Ask me anything about this page..." style="flex: 1; padding: 14px 16px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; color: #ffffff; font-size: 14px; outline: none; transition: all 0.2s ease; font-family: inherit; resize: none; min-height: 46px; max-height: 200px; overflow-y: hidden; line-height: 1.4;"></textarea>
+                            <textarea id="ai-agent-input" placeholder="Ask me anything about this page..." style="flex: 1; padding: 12px 16px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; color: #ffffff; font-size: 14px; outline: none; transition: all 0.2s ease; font-family: inherit; resize: none; min-height: 46px; max-height: 200px; overflow-y: hidden; line-height: 1.5; box-sizing: border-box; display: flex; align-items: center;"></textarea>
                             <button id="ai-agent-send" style="padding: 14px 24px; background: linear-gradient(135deg, #3f83f8 0%, #2563eb 50%, #1d4ed8 100%); border: none; border-radius: 12px; color: white; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 16px rgba(63, 131, 248, 0.3), 0 2px 8px rgba(63, 131, 248, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); text-transform: uppercase; letter-spacing: 0.5px; min-width: 80px;">Send</button>
                         </div>
                         
@@ -1865,6 +2254,14 @@ Provide a brief summary that captures the key points and context.`;
             }
 
             textarea.style.height = `${Math.max(46, newHeight)}px`;
+            // Ensure proper vertical alignment after resize
+            if (newHeight <= 46) {
+                textarea.style.display = 'flex';
+                textarea.style.alignItems = 'center';
+            } else {
+                textarea.style.display = 'block';
+                textarea.style.alignItems = 'initial';
+            }
         }
 
         setupModalEvents() {
@@ -2129,13 +2526,32 @@ Provide a brief summary that captures the key points and context.`;
                 // Manage conversation context
                 await geminiClient.manageConversationContext(message);
 
-                // Check for URLs and use intelligent browsing flow
+                // Intelligent intent analysis to determine the appropriate flow
+                const userIntent = this.analyzeUserIntent(message);
                 const orchestrator = geminiClient.functionOrchestrator;
                 const hasUrls = orchestrator.extractURLs(message).length > 0;
 
-                if (hasUrls) {
+                // Debug intent analysis
+                console.log('🧠 Intent Analysis:', {
+                    primaryType: userIntent.primaryType,
+                    confidence: userIntent.confidence,
+                    action: userIntent.action,
+                    reasoning: userIntent.reasoning,
+                    hasUrls: hasUrls
+                });
+
+                // Route based on primary intent type, not just URL presence
+                if (userIntent.primaryType === 'urlBrowsing' && hasUrls && userIntent.confidence > 0.6) {
+                    // High confidence URL browsing request
+                    await this.intelligentBrowsingOrchestration(message);
+                } else if (userIntent.primaryType === 'domManipulation' && userIntent.confidence > 0.5) {
+                    // DOM manipulation request (even if URLs are present in HTML content)
+                    await this.domManipulationOrchestration(message, userIntent);
+                } else if (hasUrls && userIntent.primaryType !== 'domManipulation') {
+                    // Fallback: URLs detected but no clear DOM manipulation intent
                     await this.intelligentBrowsingOrchestration(message);
                 } else {
+                    // Standard orchestration for other requests
                     await this.standardOrchestration(message);
                 }
 
@@ -2163,6 +2579,109 @@ Provide a brief summary that captures the key points and context.`;
                 this.removeChatMessage(browsingId);
                 this.addChatMessage('assistant', `❌ Browsing error: ${error.message}`, false, 'error');
                 console.error('Browsing orchestration error:', error);
+            }
+        }
+
+        async domManipulationOrchestration(message, userIntent) {
+            const geminiClient = STATE.geminiClient;
+            const orchestrator = geminiClient.functionOrchestrator;
+            const content = utils.extractPageContent();
+
+            // Show DOM manipulation status
+            const statusId = this.addChatMessage('assistant', `🔧 Analyzing DOM for ${userIntent.action} operation...`, true);
+
+            try {
+                // Generate DOM-specific system prompt with intent context
+                const systemPrompt = this.generateDOMManipulationPrompt(content, userIntent);
+
+                // Use orchestration with DOM-specific context
+                await this.orchestrateResponse(message, systemPrompt, 20);
+                this.removeChatMessage(statusId);
+
+                // Add response to conversation history
+                const lastAssistantMessage = Array.from(this.modal.querySelectorAll('.ai-agent-message.assistant')).pop();
+                if (lastAssistantMessage) {
+                    const responseText = lastAssistantMessage.textContent || '';
+                    if (responseText && !responseText.includes('❌')) {
+                        geminiClient.addToConversationHistory('assistant', responseText);
+                    }
+                }
+
+            } catch (error) {
+                this.removeChatMessage(statusId);
+                this.addChatMessage('assistant', `❌ DOM manipulation error: ${error.message}`, false, 'error');
+                console.error('DOM manipulation orchestration error:', error);
+            }
+        }
+
+        generateDOMManipulationPrompt(pageContext, userIntent) {
+            const basePrompt = STATE.geminiClient.functionOrchestrator.generateSystemPrompt(pageContext);
+
+            const intentPrompt = `
+
+SPECIALIZED DOM MANIPULATION MODE ACTIVATED
+===========================================
+
+DETECTED USER INTENT:
+- Primary Type: ${userIntent.primaryType}
+- Action: ${userIntent.action}
+- Target: ${userIntent.target || 'general'}
+- Confidence: ${(userIntent.confidence * 100).toFixed(1)}%
+- Reasoning: ${userIntent.reasoning.join(', ')}
+
+SPECIAL INSTRUCTIONS FOR THIS REQUEST:
+${this.getIntentSpecificInstructions(userIntent)}
+
+CRITICAL DOM MANIPULATION RULES:
+1. This is a DOM manipulation request - DO NOT try to browse URLs found in HTML content
+2. If the user provides HTML content, they want you to REMOVE/MODIFY those specific elements
+3. ALWAYS start with discoverElements to understand the page structure
+4. Use the provided HTML content as reference for what to target
+5. Be aggressive in targeting elements that match the user's description
+6. If exact selectors fail, use attribute-based selectors (data-*, class*, id*)
+
+EXECUTION PRIORITY:
+- Discovery first, then action
+- Complete the user's requested ${userIntent.action} operation
+- Provide clear feedback about what was accomplished
+- If elements aren't found, suggest alternatives based on page content`;
+
+            return basePrompt + intentPrompt;
+        }
+
+        getIntentSpecificInstructions(userIntent) {
+            switch (userIntent.action) {
+                case 'remove':
+                    return `USER WANTS TO REMOVE ELEMENTS:
+- Look for elements that match the described content/structure
+- Use broad selectors to catch similar elements (e.g., [class*="banner"], [data-test*="switch"])
+- Remove elements that are intrusive, annoying, or match the user's description
+- Try multiple selector strategies if the first attempt fails`;
+
+                case 'modify':
+                    return `USER WANTS TO MODIFY ELEMENTS:
+- Identify elements that need changes
+- Apply requested styling or content modifications
+- Ensure changes are visually effective
+- Test multiple selectors if needed`;
+
+                case 'create':
+                    return `USER WANTS TO CREATE ELEMENTS:
+- Understand where to place new elements
+- Use appropriate styling for new content
+- Ensure new elements integrate well with existing page structure`;
+
+                case 'style':
+                    return `USER WANTS TO STYLE ELEMENTS:
+- Focus on CSS styling changes
+- Apply visually appealing styles
+- Ensure styles work with existing page design`;
+
+                default:
+                    return `USER WANTS TO MANIPULATE DOM:
+- Analyze the specific request carefully
+- Choose appropriate function calls
+- Complete the requested operation thoroughly`;
             }
         }
 
@@ -2209,7 +2728,7 @@ Remember: You are analyzing content from multiple sources. Make sure to synthesi
             }
         }
 
-        async orchestrateResponse(userMessage, continuationContext = null, maxIterations = 3) {
+        async orchestrateResponse(userMessage, continuationContext = null, maxIterations = 20) {
             const content = utils.extractPageContent();
             const geminiClient = STATE.geminiClient;
             const orchestrator = geminiClient.functionOrchestrator;
@@ -2370,7 +2889,7 @@ SMART TASK COMPLETION:
             }
 
             if (currentIteration >= maxIterations) {
-                this.addChatMessage('assistant', '⏱️ Reached maximum iterations. Task may require manual completion.', false, 'normal');
+                this.addChatMessage('assistant', `⏱️ Reached maximum iterations (${maxIterations}). The task was complex and may need manual completion or could be broken down into smaller steps.`, false, 'normal');
             }
         }
 
@@ -2401,35 +2920,128 @@ SMART TASK COMPLETION:
         }
 
         analyzeUserIntent(userMessage) {
-            // Analyze user intent to provide better context to AI
+            const message = userMessage.toLowerCase();
             const intent = {
+                primaryType: 'unknown',
+                confidence: 0,
                 action: 'unknown',
                 target: null,
                 priority: 'normal',
-                suggestedWorkflow: []
+                suggestedWorkflow: [],
+                reasoning: []
             };
 
-            const message = userMessage.toLowerCase();
+            // Analyze each intent type and calculate confidence scores
+            const intentScores = {};
 
-            // Action detection
-            if (message.includes('edit') || message.includes('change') || message.includes('modify') || message.includes('update')) {
-                intent.action = 'modify';
-                intent.suggestedWorkflow = ['discoverElements', 'modifyElement'];
-            } else if (message.includes('add') || message.includes('create') || message.includes('insert')) {
-                intent.action = 'create';
-                intent.suggestedWorkflow = ['discoverElements', 'createElement'];
-            } else if (message.includes('remove') || message.includes('delete') || message.includes('hide')) {
-                intent.action = 'remove';
-                intent.suggestedWorkflow = ['discoverElements', 'removeElement'];
-            } else if (message.includes('style') || message.includes('color') || message.includes('css')) {
-                intent.action = 'style';
-                intent.suggestedWorkflow = ['discoverElements', 'addStyles'];
-            } else if (message.includes('clean') || message.includes('remove ads')) {
-                intent.action = 'clean';
-                intent.suggestedWorkflow = ['discoverElements', 'removeElement'];
-            } else if (message.includes('analyze') || message.includes('summarize') || message.includes('what')) {
-                intent.action = 'analyze';
-                intent.suggestedWorkflow = ['analyzeContent'];
+            for (const [intentType, config] of Object.entries(INTENT_CONFIG.patterns)) {
+                let score = 0;
+                const reasoning = [];
+
+                // Check action keywords
+                const actionMatches = config.actions.filter(action => message.includes(action));
+                if (actionMatches.length > 0) {
+                    score += INTENT_CONFIG.weights.action * (actionMatches.length / config.actions.length);
+                    reasoning.push(`Action keywords: ${actionMatches.join(', ')}`);
+                }
+
+                // Check context keywords
+                const contextMatches = config.contexts.filter(context => message.includes(context));
+                if (contextMatches.length > 0) {
+                    score += INTENT_CONFIG.weights.context * (contextMatches.length / config.contexts.length);
+                    reasoning.push(`Context keywords: ${contextMatches.join(', ')}`);
+                }
+
+                // Check specific indicators
+                if (config.htmlIndicators) {
+                    const htmlMatches = config.htmlIndicators.filter(indicator => userMessage.includes(indicator));
+                    if (htmlMatches.length > 0) {
+                        score += INTENT_CONFIG.weights.indicators * Math.min(htmlMatches.length / config.htmlIndicators.length, 1);
+                        reasoning.push(`HTML indicators: ${htmlMatches.join(', ')}`);
+                    }
+                }
+
+                if (config.urlIndicators) {
+                    const urlMatches = config.urlIndicators.filter(indicator => userMessage.includes(indicator));
+                    if (urlMatches.length > 0) {
+                        score += INTENT_CONFIG.weights.indicators * Math.min(urlMatches.length / config.urlIndicators.length, 1);
+                        reasoning.push(`URL indicators: ${urlMatches.join(', ')}`);
+                    }
+                }
+
+                intentScores[intentType] = { score, reasoning, threshold: config.certaintyThreshold };
+            }
+
+            // Determine primary intent type
+            let highestScore = 0;
+            let primaryType = 'unknown';
+            let primaryReasoning = [];
+
+            for (const [type, data] of Object.entries(intentScores)) {
+                if (data.score > highestScore && data.score >= data.threshold) {
+                    highestScore = data.score;
+                    primaryType = type;
+                    primaryReasoning = data.reasoning;
+                }
+            }
+
+            // Special case: If we have HTML content but DOM manipulation actions
+            if (primaryType === 'urlBrowsing' && userMessage.includes('<') && userMessage.includes('>')) {
+                const domActions = INTENT_CONFIG.patterns.domManipulation.actions;
+                const hasDomAction = domActions.some(action => message.includes(action));
+
+                if (hasDomAction) {
+                    primaryType = 'domManipulation';
+                    highestScore = 0.9; // High confidence override
+                    primaryReasoning = ['HTML content detected with DOM manipulation intent'];
+                }
+            }
+
+            // Set intent details
+            intent.primaryType = primaryType;
+            intent.confidence = Math.min(highestScore, 1.0);
+            intent.reasoning = primaryReasoning;
+
+            // Determine specific action and workflow based on primary type
+            switch (primaryType) {
+                case 'domManipulation':
+                    if (message.includes('remove') || message.includes('delete') || message.includes('hide')) {
+                        intent.action = 'remove';
+                        intent.suggestedWorkflow = ['discoverElements', 'removeElement'];
+                    } else if (message.includes('edit') || message.includes('change') || message.includes('modify') || message.includes('update')) {
+                        intent.action = 'modify';
+                        intent.suggestedWorkflow = ['discoverElements', 'modifyElement'];
+                    } else if (message.includes('add') || message.includes('create') || message.includes('insert')) {
+                        intent.action = 'create';
+                        intent.suggestedWorkflow = ['discoverElements', 'createElement'];
+                    } else if (message.includes('style') || message.includes('color') || message.includes('css')) {
+                        intent.action = 'style';
+                        intent.suggestedWorkflow = ['discoverElements', 'addStyles'];
+                    } else {
+                        intent.action = 'manipulate';
+                        intent.suggestedWorkflow = ['discoverElements'];
+                    }
+                    break;
+
+                case 'urlBrowsing':
+                    intent.action = 'browse';
+                    intent.suggestedWorkflow = ['browseUrl'];
+                    break;
+
+                case 'contentAnalysis':
+                    intent.action = 'analyze';
+                    intent.suggestedWorkflow = ['analyzeContent'];
+                    break;
+
+                default:
+                    // Fallback: try to detect from keywords
+                    if (message.includes('remove') || message.includes('delete')) {
+                        intent.action = 'remove';
+                        intent.suggestedWorkflow = ['discoverElements', 'removeElement'];
+                    } else if (message.includes('analyze') || message.includes('summarize')) {
+                        intent.action = 'analyze';
+                        intent.suggestedWorkflow = ['analyzeContent'];
+                    }
             }
 
             // Target detection
@@ -2441,6 +3053,8 @@ SMART TASK COMPLETION:
                 intent.target = 'navigation';
             } else if (message.includes('button') || message.includes('link')) {
                 intent.target = 'interactive';
+            } else if (message.includes('banner') || message.includes('popup') || message.includes('modal')) {
+                intent.target = 'overlay';
             }
 
             // Priority detection
@@ -2562,9 +3176,24 @@ SMART TASK COMPLETION:
             const chat = this.modal.querySelector('#ai-agent-chat');
             const geminiClient = STATE.geminiClient;
 
+            const currentModelInfo = CONFIG.models[geminiClient.selectedModel];
             const settingsHtml = `
                 <div style="background: rgba(255, 255, 255, 0.04); padding: 24px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255, 255, 255, 0.08);">
-                    <h3 style="margin: 0 0 24px; color: #ffffff; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">⚙️ Settings</h3>
+                    <h3 style="margin: 0 0 16px; color: #ffffff; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">⚙️ Settings</h3>
+                    
+                    <div style="
+                        background: rgba(63, 131, 248, 0.1);
+                        border: 1px solid rgba(63, 131, 248, 0.2);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 24px;
+                        font-size: 13px;
+                        color: #3f83f8;
+                    ">
+                        <strong>🤖 Currently Active:</strong> ${currentModelInfo ? currentModelInfo.name : 'Unknown Model'} 
+                        ${currentModelInfo ? `(${currentModelInfo.category})` : ''}
+                        <br><span style="color: #a0aec0; font-size: 11px;">${currentModelInfo ? currentModelInfo.description : ''}</span>
+                    </div>
                     
                     <div style="margin-bottom: 24px;">
                         <label style="display: block; color: #e1e5e9; font-size: 14px; font-weight: 500; margin-bottom: 8px;">Gemini API Key</label>
@@ -2579,6 +3208,7 @@ SMART TASK COMPLETION:
                             outline: none;
                             transition: all 0.2s ease;
                             font-family: inherit;
+                            box-sizing: border-box;
                         ">
                         <div style="font-size: 12px; color: #a0aec0; margin-top: 6px; line-height: 1.4;">
                             Get your free API key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #3f83f8; text-decoration: none; border-bottom: 1px dotted #3f83f8;">Google AI Studio</a>
@@ -2599,8 +3229,9 @@ SMART TASK COMPLETION:
                             transition: all 0.2s ease;
                             font-family: inherit;
                             max-height: 200px;
+                            box-sizing: border-box;
                         ">
-                            ${this.generateModelOptions(geminiClient.model)}
+                            ${this.generateModelOptions(geminiClient.selectedModel)}
                         </select>
                         <div style="font-size: 12px; color: #a0aec0; margin-top: 6px; line-height: 1.4;">
                             Choose the model that best fits your use case and budget

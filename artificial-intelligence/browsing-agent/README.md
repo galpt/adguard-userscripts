@@ -1,10 +1,20 @@
-# AI Browsing Agent (Gemini-Powered) v4.4.0
+# AI Browsing Agent (Gemini-Powered) v4.6.0
 
-A sophisticated userscript that transforms your browsing experience with Google Gemini AI integration. Features **intelligent URL browsing**, **conversation memory**, **multi-source content integration**, real-time DOM manipulation, and a **Windows 11-inspired dark theme design**.
+A sophisticated userscript that transforms your browsing experience with Google Gemini AI integration. Features **intelligent intent analysis**, **smart request routing**, **conversation memory**, **multi-source content integration**, real-time DOM manipulation, and a **Windows 11-inspired dark theme design**.
 
 ## ✨ Key Features
 
-### 🌐 **Intelligent URL Browsing System (NEW in v4.4.0)**
+### 🧠 **Intelligent Intent Analysis System (NEW in v4.6.0)**
+- **Smart Request Routing**: Advanced pattern recognition to distinguish between DOM manipulation and URL browsing requests
+- **Context-Aware Processing**: Analyzes user intent with sophisticated scoring algorithms and confidence levels
+- **HTML Content Recognition**: Properly handles requests containing HTML snippets without mistaking them for URL browsing tasks
+- **Adaptive Prompt Generation**: Creates specialized prompts based on detected intent type for optimal AI performance
+- **Multi-Pattern Analysis**: Evaluates action keywords, context indicators, and content patterns with weighted scoring
+- **Intent Confidence Scoring**: Provides transparency with confidence levels and reasoning for routing decisions
+- **Fallback Intelligence**: Smart defaults when intent is ambiguous or unclear
+- **Debug Insights**: Logs intent analysis for improved understanding and troubleshooting
+
+### 🌐 **Intelligent URL Browsing System (Enhanced in v4.6.0)**
 - **Smart URL Detection**: Automatically detects and browses URLs mentioned in conversations
 - **Multi-Source Integration**: Intelligently combines content from multiple websites into coherent summaries
 - **AI-Driven Decisions**: Uses AI to determine if additional URLs need to be browsed for complete answers
@@ -54,8 +64,14 @@ A sophisticated userscript that transforms your browsing experience with Google 
 - **Enhanced Layout**: Improved spacing, better visual hierarchy, and refined animations
 - **Conversation Indicators**: Shows message count and browsing capabilities in status display
 
-### 🤖 **Complete Gemini API Integration**
+### 🤖 **Complete Gemini API Integration with Context Optimization (Enhanced v4.6.0)**
 - **Official REST API**: Direct integration with Google's Gemini API endpoints (`generativelanguage.googleapis.com`)
+- **Context-Aware Configuration**: Leverages full context windows based on Google's prompt engineering guidelines
+- **Model-Specific Optimization**: Dynamic token limits based on each model's actual capabilities:
+  - **Gemini 2.5 Pro**: Up to 500,000 tokens (2M context window)
+  - **Gemini 2.5 Flash**: Up to 300,000 tokens (1M context window) 
+  - **Gemini 1.5 Pro**: Up to 400,000 tokens (2M context window)
+  - **Other models**: Optimized limits for efficiency and cost
 - **Comprehensive Model Support**: All 25+ available models across 9 categories:
   - **Primary Models**: Gemini 2.5 Pro, 2.5 Flash, 2.0 Flash, 1.5 Flash, 1.5 Pro variants
   - **Audio Models**: Native Audio, TTS (Text-to-Speech), Thinking Audio
@@ -108,7 +124,23 @@ The script is designed to work seamlessly with AdGuard Desktop, providing AI-pow
 - **Progress Indicators**: Real-time feedback showing orchestration progress, URL browsing, and task completion
 - **Memory Indicators**: Shows conversation history count and browsing capabilities in status display
 
-### Enhanced Commands (v4.4.0)
+### Enhanced Commands & Problem Resolution (v4.6.0)
+
+#### Intent Analysis Problem Solved
+**v4.6.0** resolves a critical issue where the agent would misinterpret DOM manipulation requests containing HTML content as URL browsing tasks. Previously, requests like:
+
+**❌ OLD BEHAVIOR (v4.5.0):**
+```
+"remove this because it's annoying: <div data-test-id="switch-banner"...>"
+```
+Would incorrectly trigger URL browsing mode because it detected URL-like patterns in the HTML attributes, causing the agent to fail at understanding the user's actual intent.
+
+**✅ NEW BEHAVIOR (v4.6.0):**
+The intelligent intent analysis system now properly recognizes this as a DOM manipulation request with high confidence, using specialized prompts that instruct the AI to:
+1. Recognize HTML content as target elements (not URLs to browse)
+2. Use the provided HTML structure to identify elements for removal
+3. Apply aggressive selector strategies to target similar elements
+4. Complete the requested DOM manipulation operation
 
 #### Intelligent URL Browsing & Analysis
 - **"Summarize this Wikipedia article about Time Complexity"** *(while on any unrelated page)* - Automatically browses and summarizes the URL
@@ -139,7 +171,73 @@ The script is designed to work seamlessly with AdGuard Desktop, providing AI-pow
 - **"Find all the headings and make them green"** - Discovery followed by batch modifications
 - **"Create a table of contents from the headings"** - Complex DOM manipulation with intelligent structure analysis
 
-## 🌐 Enhanced Intelligent Browsing System (v4.4.0)
+## 🧠 Technical: Context Window Optimization (v4.6.0)
+
+### Google Prompt Engineering Guidelines Implementation
+Following the [official Google Gemini prompt engineering guide](https://ai.google.dev/gemini-api/docs/prompting-strategies), v4.6.0 implements:
+
+#### **Dynamic Context Management**
+- **Model-Aware Limits**: Each model uses its full context window capability
+- **Intelligent Token Allocation**: Optimizes between conversation history and current task content
+- **Progressive Summarization**: Maintains context while managing token usage efficiently
+- **Large Context Models**: Gemini 2.5 Pro and 1.5 Pro can handle extensive DOM analysis and multi-source browsing
+
+#### **Context Window Utilization**
+```javascript
+// Model-specific context limits
+Gemini 2.5 Pro:    2M context → 500K tokens for agent operations
+Gemini 2.5 Flash:  1M context → 300K tokens for agent operations  
+Gemini 1.5 Pro:    2M context → 400K tokens for agent operations
+Gemini 1.5 Flash:  1M context → 200K tokens for agent operations
+```
+
+#### **Benefits for DOM Manipulation & Browsing**
+- **Complex Page Analysis**: Large models can analyze entire page structures without summarization
+- **Multi-URL Browsing**: Process multiple long articles without context loss
+- **Extended Conversations**: Maintain detailed conversation history across sessions
+- **Rich Context Prompts**: Include full page content + browsed content + conversation history
+
+### Intent Analysis System (v4.6.0)
+
+### How Intent Analysis Works
+The new intelligent intent analysis system uses a multi-layered approach to correctly identify user intentions:
+
+#### 1. Pattern Recognition
+- **DOM Manipulation Patterns**: Actions (remove, edit, modify), contexts (element, div, banner), HTML indicators (<div, class=, data-)
+- **URL Browsing Patterns**: Actions (browse, visit, analyze), contexts (url, website, link), URL indicators (http://, www., .com)
+- **Content Analysis Patterns**: Actions (analyze, summarize, explain), contexts (content, page, article)
+
+#### 2. Weighted Scoring Algorithm
+```javascript
+Score = (Action Weight × Action Matches) + 
+        (Context Weight × Context Matches) + 
+        (Indicator Weight × Indicator Matches)
+
+Default Weights: Action=0.4, Context=0.3, Indicators=0.3
+```
+
+#### 3. Special Case Handling
+- **HTML Content Override**: If HTML elements are detected (`<` and `>`) with DOM manipulation actions, the system overrides URL browsing classification
+- **Confidence Thresholds**: Each intent type has specific confidence requirements (DOM: 0.7, URL: 0.6, Analysis: 0.5)
+- **Fallback Logic**: Smart defaults when intent is ambiguous
+
+#### 4. Adaptive Prompt Generation
+Based on detected intent, the system generates specialized prompts:
+- **DOM Mode**: Emphasizes element targeting, discovery-first workflow, and manipulation completion
+- **Browsing Mode**: Focuses on URL content analysis and multi-source integration
+- **Analysis Mode**: Optimizes for content summarization and information extraction
+
+### Request Routing Decision Tree
+```
+User Input → Intent Analysis → Confidence Check → Route Selection
+                    ↓
+        [DOM > 0.5] → DOM Manipulation Flow
+        [URL > 0.6 + URLs present] → URL Browsing Flow  
+        [Has URLs + Not DOM] → URL Browsing Flow (Fallback)
+        [Default] → Standard Orchestration
+```
+
+## 🌐 Enhanced Intelligent Browsing System (v4.6.0)
 
 ### Smart URL Detection & Decision Making
 The AI now features sophisticated URL browsing intelligence that works seamlessly regardless of your current page:
@@ -350,6 +448,14 @@ class UIManager {
     }
 }
 ```
+
+## 🚀 What's New in v4.5.0
+
+### 🔧 **Enhanced UX & Performance**
+- **Increased Maximum Iterations**: Raised from 3 to 20 iterations for complex DOM manipulation tasks
+- **Better Iteration Feedback**: More informative messages when reaching maximum iterations
+- **Model Selection Feedback**: Settings now show the currently active model with visual indicators
+- **Current Model Display**: Settings interface displays the active model at the top for better user awareness
 
 ## 🚀 What's New in v4.4.0
 
